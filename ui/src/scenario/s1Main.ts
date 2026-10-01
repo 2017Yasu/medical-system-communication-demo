@@ -49,7 +49,7 @@ export const s1Main: Scenario = {
       no: 1,
       title: "医師 X が血算・生化学を依頼",
       actor: "ehr-doctor",
-      target: { screen: "ehr", control: "order-set-CBC,order-set-BIO,order-submit" },
+      target: { screen: "ehr", role: "doctor", control: "order-patient,order-set-CBC,order-set-BIO,order-submit" },
       run: (ctx) => placeOrder(ctx.clients["ehr-doctor"], "demo-taro", ["CBC", "BIO"], ctx.now()),
       expected: { ...requested, traffic: [{ kind: "http", client: "ehr-doctor", method: "POST", resourceType: "Bundle" }] },
       explanation: {
@@ -82,7 +82,7 @@ export const s1Main: Scenario = {
       no: 3,
       title: "看護師 D が採血を記録",
       actor: "ehr-nurse",
-      target: { screen: "ehr", control: "collect-1" },
+      target: { screen: "ehr", role: "nurse", control: "collect-1" },
       run: async (ctx) => recordCollection(ctx.clients["ehr-nurse"], await currentOrder(ctx, "ehr-nurse"), ctx.now()),
       expected: { ...collected, traffic: [{ kind: "http", client: "ehr-nurse", method: "POST", resourceType: "Bundle" }] },
       explanation: {
@@ -110,7 +110,7 @@ export const s1Main: Scenario = {
       no: 5,
       title: "電子カルテに「受付済み」と表示",
       actor: "auto",
-      target: { screen: "ehr" },
+      target: { screen: "ehr", role: "doctor" },
       expected: {
         ...accepted,
         traffic: [
@@ -155,7 +155,7 @@ export const s1Main: Scenario = {
       no: 8,
       title: "医師 X が結果を確認",
       actor: "ehr-doctor",
-      target: { screen: "ehr", control: "view-result-1" },
+      target: { screen: "ehr", role: "doctor", control: "view-result-1" },
       run: async (ctx) => {
         const order = await currentOrder(ctx, "ehr-doctor");
         const id = order.sr.resource.id!;

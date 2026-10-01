@@ -76,8 +76,7 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
                 <tr>
                   <th>依頼</th>
                   <th>依頼の状態</th>
-                  <th>作業の状態</th>
-                  <th />
+                  <th>作業の状態・操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -101,8 +100,7 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
                       <td>
                         <TaskStatus task={task} />
                         <div className="muted">担当：{ownerLabel(row)}</div>
-                      </td>
-                      <td>
+                        <div style={{ marginTop: "var(--sp-1)" }}>
                         {task?.status === "requested" && biz === "not-collected" && (
                           <>
                             <button type="button" disabled data-guide={`accept-${id}`}>
@@ -126,6 +124,7 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
                             結果入力
                           </button>
                         )}
+                        </div>
                       </td>
                     </tr>
                   );

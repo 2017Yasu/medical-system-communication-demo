@@ -183,13 +183,13 @@ SC-006（通信の取りこぼし 0 件）が自動テストを要求してい�
 
 ### Tests for User Story 4
 
-- [ ] T073 [P] [US4] `ui/tests/e2e/self-study.spec.ts`：`/stage?mode=self-study` で「開始」→ 強調表示された要素（`data-guide`）を順にクリックして最後まで進めること、案内と違うボタンを押すと案内に戻るよう促されること、「最初から」で初期状態に戻ることを確認する
+- [X] T073 [P] [US4] `ui/tests/e2e/self-study.spec.ts`：`/stage?mode=self-study` で「開始」→ 強調表示された要素（`data-guide`）を順にクリックして最後まで進めること、案内と違うボタンを押すと案内に戻るよう促されること、「最初から」で初期状態に戻ることを確認する
 
 ### Implementation for User Story 4
 
-- [ ] T074 [US4] `ui/src/systems/ehr/OrderForm.tsx`・`ui/src/systems/ehr/NurseView.tsx`・`ui/src/systems/ehr/ResultView.tsx`・`ui/src/systems/lis/LisScreen.tsx`・`ui/src/systems/lis/ResultEntry.tsx` の操作要素に、`ui/src/scenario/s1Main.ts` の `target.control` と一致する `data-guide` 属性を付ける
-- [ ] T075 [US4] `ui/src/guide/GuideOverlay.tsx` と `ui/src/guide/useGuide.ts`：`ScenarioRunner.detectStep` で現在のステップを判定し、次に操作する画面とボタン（`data-guide`）を強調表示して、そのステップの解説を表示する。auto のステップでは `target.screen` の画面を強調して「通知が届くのを待っています」と表示し、完了したら自動で次へ進む。案内と違う `data-guide` の要素が押されたら案内に戻るよう促し、最終ステップの後に「最初から」（`/demo/reset`）を出す（FR-029。T069、T074 に依存）
-- [ ] T076 [US4] `ui/src/app/StageView.tsx` に `mode=self-study` の表示を追加し、進行パネルの代わりに GuideOverlay を表示する（T071、T075 に依存）
+- [X] T074 [US4] `ui/src/systems/ehr/OrderForm.tsx`・`ui/src/systems/ehr/NurseView.tsx`・`ui/src/systems/ehr/ResultView.tsx`・`ui/src/systems/lis/LisScreen.tsx`・`ui/src/systems/lis/ResultEntry.tsx` の操作要素に、`ui/src/scenario/s1Main.ts` の `target.control` と一致する `data-guide` 属性を付ける
+- [X] T075 [US4] `ui/src/guide/GuideOverlay.tsx` と `ui/src/guide/useGuide.ts`：`ScenarioRunner.detectStep` で現在のステップを判定し、次に操作する画面とボタン（`data-guide`）を強調表示して、そのステップの解説を表示する。auto のステップでは `target.screen` の画面を強調して「通知が届くのを待っています」と表示し、完了したら自動で次へ進む。案内と違う `data-guide` の要素が押されたら案内に戻るよう促し、最終ステップの後に「最初から」（`/demo/reset`）を出す（FR-029。T069、T074 に依存）
+- [X] T076 [US4] `ui/src/app/StageView.tsx` に `mode=self-study` の表示を追加し、進行パネルの代わりに GuideOverlay を表示する（T071、T075 に依存）
 
 **Checkpoint**: 講演モードと自習モードの両方が使える（D-01）
 

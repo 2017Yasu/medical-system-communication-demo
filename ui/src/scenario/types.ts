@@ -33,8 +33,8 @@ export interface ScenarioStep {
   title: string;
   /** auto = 利用者の操作が無く、通知を受けた画面が自動で取り直すステップ */
   actor: ScenarioClient | "auto";
-  /** 自習モードで強調する画面とボタン（data-guide 属性の値）。auto は画面のみ。 */
-  target: { screen: "ehr" | "lis"; control?: string };
+  /** 自習モードで強調する画面とボタン。control は data-guide 属性の値（カンマ区切りで複数）、role は電子カルテの役割。auto は画面のみ。 */
+  target: { screen: "ehr" | "lis"; control?: string; role?: "doctor" | "nurse" };
   /** 自動実行の処理（画面と同じ FHIR 要求を送る）。auto のステップには無い。 */
   run?: (ctx: ScenarioContext) => Promise<void>;
   expected: ExpectedState;
