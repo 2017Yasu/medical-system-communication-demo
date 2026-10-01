@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ErrorBanner } from "../../app/ErrorBanner";
 import { FhirError, type ClientId } from "../../fhir/client";
-import { buildAcceptPatch, buildStartPatch } from "../../fhir/builders/labOrder";
+import { acceptTask, rejectTask, rerunTask, startTask } from "../../fhir/labActions";
 import { useLiveData } from "../../realtime/useLiveData";
 import { LIS_OWNERS, loadLabOrders, orderNumber, orderedSetNames, taskBusinessStatus, type OrderRow } from "../shared/orders";
 import { SrStatus, TaskStatus, ownerLabel } from "../shared/StatusBadges";
+import { RejectDialog } from "./RejectDialog";
 import { ResultEntry } from "./ResultEntry";
 
 export type Tech = "tech-a" | "tech-b";
@@ -28,6 +29,7 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
   });
   const [busyId, setBusyId] = useState<string | null>(null);
   const [entryId, setEntryId] = useState<string | null>(null);
+  const [rejectId, setRejectId] = useState<string | null>(null);
 
   /** 版の確認つき（If-Match）で Task を更新する。競合は表示して最新を取り直し、自動ではやり直さない（FR-004）。 */
   const act = async (row: OrderRow, operation: string, run: () => Promise<unknown>) => {
@@ -45,10 +47,15 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
     }
   };
 
-  const accept = (row: OrderRow) =>
-    act(row, "受付", () => live.client.patch("Task", row.task!.resource.id!, buildAcceptPatch(current, new Date()), row.task!.etag, "受付"));
-  const start = (row: OrderRow) =>
-    act(row, "測定開始", () => live.client.patch("Task", row.task!.resource.id!, buildStartPatch(new Date()), row.task!.etag, "測定開始"));
+  const order = (row: OrderRow) => ({ sr: row.sr, task: row.task! });
+  const accept = (row: OrderRow) => act(row, "受付", () => acceptTask(live.client, order(row), current));
+  const start = (row: OrderRow) => act(row, "測定開始", () => startTask(live.client, order(row)));
+  const rerun = (row: OrderRow) => act(row, "再検", () => rerunTask(live.client, order(row)));
+  const reject = (row: OrderRow, reason: string) =>
+    act(row, "受付不可", async () => {
+      await rejectTask(live.client, order(row), reason);
+      setRejectId(null);
+    });
 
   const rows = live.data ?? [];
   const entryRow = rows.find((r) => r.sr.resource.id === entryId) ?? null;
@@ -110,9 +117,17 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
                           </>
                         )}
                         {task?.status === "requested" && biz !== "not-collected" && (
-                          <button type="button" className="primary" disabled={busy} onClick={() => accept(row)} data-guide={`accept-${id}`}>
-                            受付
-                          </button>
+                          <div className="row">
+                            <button type="button" className="primary" disabled={busy} onClick={() => accept(row)} data-guide={`accept-${id}`}>
+                              受付
+                            </button>
+                            <button type="button" className="danger" disabled={busy} onClick={() => setRejectId(rejectId === id ? null : id)} data-guide={`reject-${id}`}>
+                              受付不可
+                            </button>
+                          </div>
+                        )}
+                        {rejectId === id && task?.status === "requested" && (
+                          <RejectDialog onSubmit={(reason) => reject(row, reason)} onCancel={() => setRejectId(null)} />
                         )}
                         {task?.status === "accepted" && (
                           <button type="button" className="primary" disabled={busy} onClick={() => start(row)} data-guide={`start-${id}`}>
@@ -120,8 +135,18 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
                           </button>
                         )}
                         {task?.status === "in-progress" && (
-                          <button type="button" className="primary" onClick={() => setEntryId(entryId === id ? null : id)} data-guide={`entry-${id}`}>
-                            結果入力
+                          <div className="row">
+                            <button type="button" className="primary" onClick={() => setEntryId(entryId === id ? null : id)} data-guide={`entry-${id}`}>
+                              結果入力
+                            </button>
+                            <button type="button" disabled={busy} onClick={() => rerun(row)} data-guide={`rerun-${id}`}>
+                              再検
+                            </button>
+                          </div>
+                        )}
+                        {task?.status === "on-hold" && (
+                          <button type="button" className="primary" disabled={busy} onClick={() => start(row)} data-guide={`resume-${id}`}>
+                            再開
                           </button>
                         )}
                         </div>

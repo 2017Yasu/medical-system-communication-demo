@@ -49,7 +49,7 @@ test("通信モニタ：通信がシーケンス図に出て、詳細と版の�
   // 受付 → Task の版が増え、履歴から「その版を作った通信」へ辿れる
   const nurse = await bag.open("/ehr?role=nurse");
   await nurse.getByRole("button", { name: "採血を記録" }).click();
-  await lis.getByRole("button", { name: "受付" }).click();
+  await lis.getByRole("button", { name: "受付", exact: true }).click();
   await expect(lis.getByTestId("task-1")).toContainText("受付済み");
   const history = monitor.getByTestId("history-view");
   await expect(history.locator("tbody tr")).toHaveCount(3, SYNC); // 依頼・採血・受付

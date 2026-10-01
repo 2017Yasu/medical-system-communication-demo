@@ -2,7 +2,7 @@ import { useScenario } from "../scenario/ScenarioProvider";
 
 /** 講演モードの進行パネル：次へ / 戻る / 初期化、現在のステップ、業務上の意味と FHIR 上の意味の解説（FR-026）。 */
 export function ProgressPanel() {
-  const { runner, view } = useScenario();
+  const { runner, view, scenarios, scenarioId, selectScenario } = useScenario();
   const scenario = view.scenario;
   if (!scenario) return <section className="panel" aria-label="進行">シナリオを準備しています…</section>;
   const steps = scenario.steps;
@@ -14,7 +14,23 @@ export function ProgressPanel() {
   return (
     <section className="panel" aria-label="進行" data-testid="progress-panel">
       <div className="row" style={{ justifyContent: "space-between" }}>
-        <strong style={{ fontSize: "var(--fs-large)" }}>{scenario.title}</strong>
+        <label className="row" style={{ gap: "var(--sp-2)" }}>
+          <span className="muted">シナリオ</span>
+          <select
+            value={scenarioId}
+            onChange={(e) => selectScenario(e.target.value)}
+            disabled={view.busy}
+            aria-label="シナリオ"
+            data-testid="scenario-select"
+            style={{ fontSize: "var(--fs-large)", fontWeight: 700 }}
+          >
+            {scenarios.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.title}
+              </option>
+            ))}
+          </select>
+        </label>
         <span className="row">
           <button type="button" onClick={() => void runner.back()} disabled={view.busy || view.completed === 0} data-testid="btn-back">
             ◀ 戻る

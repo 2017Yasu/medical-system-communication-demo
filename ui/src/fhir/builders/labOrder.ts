@@ -197,6 +197,8 @@ export interface FinalReportParams {
   values?: Record<string, number>;
   /** 今回報告する項目。省略すると依頼された全項目。 */
   itemKeys?: string[];
+  /** 既に報告済みの項目（一部報告の検証に使う）。 */
+  reportedKeys?: string[];
   /** 先行報告（partial）が既にある場合、その DiagnosticReport と ETag。 */
   existingReport?: DiagnosticReport;
   existingReportEtag?: string | null;
@@ -270,4 +272,63 @@ export function buildFinalReportTransaction(p: FinalReportParams): Bundle {
   };
   const serviceRequest: ServiceRequest = { ...p.serviceRequest, status: "completed" };
   return transaction([...entries, put(task, p.taskEtag), put(serviceRequest, p.serviceRequestEtag)]);
+}
+
+// ---- 例外的な流れ ----
+
+export interface CancelParams {
+  serviceRequest: ServiceRequest;
+  serviceRequestEtag: string | null;
+  task: Task;
+  taskEtag: string | null;
+  now: Date;
+}
+
+/** 医師による取消：依頼（revoked）と作業（cancelled）を 1 つの Transaction で更新する（FR-010）。 */
+export function buildCancelTransaction({ serviceRequest, serviceRequestEtag, task, taskEtag, now }: CancelParams): Bundle {
+  const nextSr: ServiceRequest = { ...serviceRequest, status: "revoked" };
+  const nextTask: Task = { ...task, status: "cancelled", lastModified: iso(now) };
+  return transaction([put(nextSr, serviceRequestEtag), put(nextTask, taskEtag)]);
+}
+
+/** 受付不可（理由の入力が必須。例：「溶血のため再採血が必要」）（FR-017）。 */
+export function buildRejectPatch(reason: string, now: Date): JsonPatchOp[] {
+  const text = reason.trim();
+  if (!text) throw new Error("受付不可の理由を入力してください");
+  return [
+    { op: "replace", path: "/status", value: "rejected" },
+    { op: "add", path: "/statusReason", value: { text } },
+    { op: "add", path: "/lastModified", value: iso(now) },
+  ];
+}
+
+/** 再検：測定中の作業を保留・再検中にする。再開は {@link buildStartPatch}（実施中・測定中に戻す）（FR-018）。 */
+export function buildRerunPatch(now: Date): JsonPatchOp[] {
+  return [
+    { op: "replace", path: "/status", value: "on-hold" },
+    { op: "add", path: "/businessStatus", value: businessStatus("rerun") },
+    { op: "add", path: "/lastModified", value: iso(now) },
+  ];
+}
+
+/**
+ * 一部の項目だけを先に報告する：Observation × n と DiagnosticReport（partial）、Task の businessStatus（一部報告済）と output。
+ * Task.status と ServiceRequest は変えない（FR-016）。1 項目以上、残りの全項目未満のときだけ作れる（data-model.md §5）。
+ */
+export function buildPartialReportTransaction(p: FinalReportParams): Bundle {
+  const all = allItemKeys(p.serviceRequest);
+  const reported = new Set(p.reportedKeys ?? []);
+  const chosen = p.itemKeys ?? [];
+  const remaining = all.filter((k) => !reported.has(k));
+  if (chosen.length === 0) throw new Error("先に報告する項目を 1 つ以上選んでください");
+  if (chosen.some((k) => !remaining.includes(k))) throw new Error("依頼されていない、または報告済みの項目は選べません");
+  if (chosen.length >= remaining.length) throw new Error("すべての項目を報告するときは、一部報告ではなく「承認・報告」を使ってください");
+  const { entries, reportRef } = reportEntries(p, "partial");
+  const task: Task = {
+    ...p.task,
+    businessStatus: businessStatus("partial-reported"),
+    lastModified: iso(p.now),
+    output: [{ type: { text: "DiagnosticReport" }, valueReference: { reference: reportRef } }],
+  };
+  return transaction([...entries, put(task, p.taskEtag)]);
 }

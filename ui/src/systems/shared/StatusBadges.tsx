@@ -38,6 +38,11 @@ export function TaskStatus({ task }: { task: Task | null | undefined }) {
           </span>
         </>
       )}
+      {task.statusReason?.text && (
+        <div className="muted" data-testid="status-reason">
+          理由：{task.statusReason.text}
+        </div>
+      )}
     </span>
   );
 }

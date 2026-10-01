@@ -4,38 +4,38 @@ import { fetchLatestOrder, acceptTask, placeOrder, recordCollection, startTask, 
 import { requestShowResult } from "./events";
 import type { Scenario, ScenarioContext, ScenarioState } from "./types";
 
-const requested: ScenarioState = {
+export const requested: ScenarioState = {
   serviceRequest: "active",
   task: { status: "requested", businessStatus: "not-collected", owner: "Organization/lab-dept" },
   specimen: "not-collected",
   diagnosticReport: "none",
 };
-const collected: ScenarioState = {
+export const collected: ScenarioState = {
   serviceRequest: "active",
   task: { status: "requested", businessStatus: "collected", owner: "Organization/lab-dept" },
   specimen: "collected",
   diagnosticReport: "none",
 };
-const accepted: ScenarioState = {
+export const accepted: ScenarioState = {
   serviceRequest: "active",
   task: { status: "accepted", businessStatus: "received", owner: "PractitionerRole/tech-a" },
   specimen: "collected",
   diagnosticReport: "none",
 };
-const measuring: ScenarioState = {
+export const measuring: ScenarioState = {
   serviceRequest: "active",
   task: { status: "in-progress", businessStatus: "measuring", owner: "PractitionerRole/tech-a" },
   specimen: "collected",
   diagnosticReport: "none",
 };
-const reported: ScenarioState = {
+export const reported: ScenarioState = {
   serviceRequest: "completed",
   task: { status: "completed", businessStatus: "reported", owner: "PractitionerRole/tech-a" },
   specimen: "collected",
   diagnosticReport: "final",
 };
 
-async function currentOrder(ctx: ScenarioContext, client: "ehr-doctor" | "ehr-nurse" | "lis-tech-a") {
+export async function currentOrder(ctx: ScenarioContext, client: "ehr-doctor" | "ehr-nurse" | "lis-tech-a") {
   const order = await fetchLatestOrder(ctx.clients[client]);
   if (!order) throw new Error("対象の依頼が見つかりません（先のステップが完了していません）");
   return order;

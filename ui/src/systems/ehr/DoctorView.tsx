@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { ErrorBanner } from "../../app/ErrorBanner";
 import { useLiveData } from "../../realtime/useLiveData";
 import { SHOW_RESULT_EVENT } from "../../scenario/events";
-import { loadDoctorOrders } from "../shared/orders";
+import { FhirError } from "../../fhir/client";
+import { cancelOrder } from "../../fhir/labActions";
+import { loadDoctorOrders, type OrderRow } from "../shared/orders";
 import { OrderForm } from "./OrderForm";
 import { OrderList } from "./OrderList";
 import { ResultView } from "./ResultView";
@@ -30,6 +32,19 @@ export function DoctorView() {
     return () => window.removeEventListener(SHOW_RESULT_EVENT, open);
   }, [latestId]);
 
+  /** 取消。競合（412）などは表示して最新を取り直し、自動ではやり直さない。 */
+  const cancel = async (row: OrderRow) => {
+    try {
+      await cancelOrder(live.client, { sr: row.sr, task: row.task! });
+      await live.reload();
+    } catch (e) {
+      if (e instanceof FhirError) {
+        live.setError(e, "取消");
+        await live.reload();
+      } else throw e;
+    }
+  };
+
   return (
     <div className="screen">
       <ErrorBanner error={live.error} onDismiss={live.clearError} />
@@ -40,7 +55,7 @@ export function DoctorView() {
         onDone={() => void live.reload()}
         onError={(e, op) => live.setError(e, op)}
       />
-      <OrderList rows={rows} selectedId={selected} onSelect={setSelected} />
+      <OrderList rows={rows} selectedId={selected} onSelect={setSelected} onCancel={cancel} />
       <ResultView client={live.client} row={selectedRow} />
     </div>
   );

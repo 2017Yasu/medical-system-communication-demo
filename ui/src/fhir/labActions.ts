@@ -4,9 +4,13 @@ import type { FhirClient, Versioned } from "./client";
 import {
   allItemKeys,
   buildAcceptPatch,
+  buildCancelTransaction,
   buildCollectionTransaction,
   buildFinalReportTransaction,
   buildOrderTransaction,
+  buildPartialReportTransaction,
+  buildRejectPatch,
+  buildRerunPatch,
   buildStartPatch,
   labItem,
   nextOrderNumber,
@@ -93,5 +97,70 @@ export async function submitFinalReport(
       existingReportEtag: reports[0]?.etag,
     }),
     "結果の報告",
+  );
+}
+
+/** 医師による取消（結果報告前）。 */
+export async function cancelOrder(client: FhirClient, order: CurrentOrder, now = new Date()): Promise<void> {
+  await client.transaction(
+    buildCancelTransaction({
+      serviceRequest: order.sr.resource,
+      serviceRequestEtag: order.sr.etag,
+      task: order.task.resource,
+      taskEtag: order.task.etag,
+      now,
+    }),
+    "依頼の取消",
+  );
+}
+
+/** 技師による受付不可（検体不備など。理由が必須）。 */
+export async function rejectTask(client: FhirClient, order: CurrentOrder, reason: string, now = new Date()): Promise<void> {
+  await client.patch("Task", order.task.resource.id!, buildRejectPatch(reason, now), order.task.etag, "受付不可");
+}
+
+/** 再検：測定中の作業を保留・再検中にする。再開は {@link startTask}。 */
+export async function rerunTask(client: FhirClient, order: CurrentOrder, now = new Date()): Promise<void> {
+  await client.patch("Task", order.task.resource.id!, buildRerunPatch(now), order.task.etag, "再検");
+}
+
+/** 既に報告済みの項目のキー。 */
+export async function reportedItemKeys(client: FhirClient, order: CurrentOrder): Promise<string[]> {
+  const observations = await client.search<Observation>("Observation", { "based-on": `ServiceRequest/${order.sr.resource.id}` });
+  const reported = new Set(observations.map((o) => o.resource.code?.coding?.[0]?.code));
+  return allItemKeys(order.sr.resource).filter((k) => reported.has(labItem(k).coding.code));
+}
+
+/** 選んだ項目だけを先に報告する（DiagnosticReport は一部報告。作業の状態と依頼は変えない）。 */
+export async function submitPartialReport(
+  client: FhirClient,
+  order: CurrentOrder,
+  techRoleId: string,
+  itemKeys: string[],
+  values?: Record<string, number>,
+  now = new Date(),
+): Promise<void> {
+  const srId = order.sr.resource.id!;
+  const [specimen, reports, reportedKeys] = await Promise.all([
+    client.read<Specimen>("Specimen", refOf(order.sr.resource.specimen?.[0]?.reference)),
+    client.search<DiagnosticReport>("DiagnosticReport", { "based-on": `ServiceRequest/${srId}` }),
+    reportedItemKeys(client, order),
+  ]);
+  await client.transaction(
+    buildPartialReportTransaction({
+      serviceRequest: order.sr.resource,
+      serviceRequestEtag: order.sr.etag,
+      task: order.task.resource,
+      taskEtag: order.task.etag,
+      specimen: specimen.resource,
+      techRoleId,
+      now,
+      values,
+      itemKeys,
+      reportedKeys,
+      existingReport: reports[0]?.resource,
+      existingReportEtag: reports[0]?.etag,
+    }),
+    "一部の結果の報告",
   );
 }

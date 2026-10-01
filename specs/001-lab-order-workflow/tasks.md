@@ -203,16 +203,16 @@ SC-006（通信の取りこぼし 0 件）が自動テストを要求してい�
 
 ### Tests for User Story 5
 
-- [ ] T077 [P] [US5] `server/src/test/java/jp/example/demo/integration/S1VariationsIT.java`：`s1-cancel`（ServiceRequest `revoked`・Task `cancelled` を 1 つの Transaction で更新）、`s1-reject`（Task `rejected`・`statusReason`、ServiceRequest は `active` のまま）、`s1-rerun`（`in-progress` → `on-hold`/`rerun` → `in-progress`/`measuring` → 全項目報告で `completed`）、`s1-partial`（血算のみ報告で DiagnosticReport `partial`・Task `in-progress`/`partial-reported`（output 追加）・ServiceRequest `active`、残りの報告で DiagnosticReport `final`・Task / ServiceRequest `completed`）を再現し、取消済みの Task を `in-progress` にする PATCH と、取消済みの依頼への採血の記録（最新の ETag を付けた採血の Transaction）がどちらも 422 になり、Specimen も更新されないことを確認する。`s1.repeat` の回数だけ繰り返す（T015 に依存）
-- [ ] T078 [P] [US5] `ui/tests/unit/variationBuilders.test.ts`：T079 のビルダー（取消 Transaction、受付不可 PATCH、再検の 2 つの PATCH、一部報告 Transaction）が data-model.md §4 のとおりの要求を作ること、一部報告は「依頼された全項目のうち 1 項目以上・全項目未満」のときだけ作れること（data-model.md §5）を確認する
+- [X] T077 [P] [US5] `server/src/test/java/jp/example/demo/integration/S1VariationsIT.java`：`s1-cancel`（ServiceRequest `revoked`・Task `cancelled` を 1 つの Transaction で更新）、`s1-reject`（Task `rejected`・`statusReason`、ServiceRequest は `active` のまま）、`s1-rerun`（`in-progress` → `on-hold`/`rerun` → `in-progress`/`measuring` → 全項目報告で `completed`）、`s1-partial`（血算のみ報告で DiagnosticReport `partial`・Task `in-progress`/`partial-reported`（output 追加）・ServiceRequest `active`、残りの報告で DiagnosticReport `final`・Task / ServiceRequest `completed`）を再現し、取消済みの Task を `in-progress` にする PATCH と、取消済みの依頼への採血の記録（最新の ETag を付けた採血の Transaction）がどちらも 422 になり、Specimen も更新されないことを確認する。`s1.repeat` の回数だけ繰り返す（T015 に依存）
+- [X] T078 [P] [US5] `ui/tests/unit/variationBuilders.test.ts`：T079 のビルダー（取消 Transaction、受付不可 PATCH、再検の 2 つの PATCH、一部報告 Transaction）が data-model.md §4 のとおりの要求を作ること、一部報告は「依頼された全項目のうち 1 項目以上・全項目未満」のときだけ作れること（data-model.md §5）を確認する
 
 ### Implementation for User Story 5
 
-- [ ] T079 [US5] `ui/src/fhir/builders/labOrder.ts` に `buildCancelTransaction(sr, srEtag, task, taskEtag)`、`buildRejectPatch(reason, now)`、`buildRerunPatches(now)`、`buildPartialReportTransaction(...)`（POST Observation × n・POST DiagnosticReport `partial`・PUT Task（`ifMatch`、output 追加、businessStatus `partial-reported`））を追加する（T078 を通す）
-- [ ] T080 [P] [US5] `ui/src/systems/ehr/OrderList.tsx` に「取消」を追加する（DiagnosticReport が無い依頼のみ有効。data-model.md §5、FR-010）
-- [ ] T081 [P] [US5] `ui/src/systems/lis/RejectDialog.tsx` を作成し、`ui/src/systems/lis/LisScreen.tsx` に「受付不可」（理由の入力必須。例：「溶血のため再採血が必要」。FR-017）と「再検」（FR-018）を追加し、受付不可の理由を電子カルテの `OrderList.tsx` にも表示する
-- [ ] T082 [US5] `ui/src/systems/lis/ResultEntry.tsx` に、項目ごとの報告対象の選択と「一部報告」を追加し、既存の `partial` 報告がある場合の全項目報告（DiagnosticReport を `ifMatch` 付き PUT で `final`）に対応する（FR-016。T079 に依存）
-- [ ] T083 [US5] `ui/src/scenario/s1Cancel.ts`・`ui/src/scenario/s1Reject.ts`・`ui/src/scenario/s1Rerun.ts`・`ui/src/scenario/s1Partial.ts` を contracts/ui-screens.md のステップ構成で定義し（データが変わらないステップには `traffic` の条件を付ける）、`ui/src/app/ProgressPanel.tsx` のシナリオ選択に追加する（FR-030。T068、T079 に依存）
+- [X] T079 [US5] `ui/src/fhir/builders/labOrder.ts` に `buildCancelTransaction(sr, srEtag, task, taskEtag)`、`buildRejectPatch(reason, now)`、`buildRerunPatches(now)`、`buildPartialReportTransaction(...)`（POST Observation × n・POST DiagnosticReport `partial`・PUT Task（`ifMatch`、output 追加、businessStatus `partial-reported`））を追加する（T078 を通す）
+- [X] T080 [P] [US5] `ui/src/systems/ehr/OrderList.tsx` に「取消」を追加する（DiagnosticReport が無い依頼のみ有効。data-model.md §5、FR-010）
+- [X] T081 [P] [US5] `ui/src/systems/lis/RejectDialog.tsx` を作成し、`ui/src/systems/lis/LisScreen.tsx` に「受付不可」（理由の入力必須。例：「溶血のため再採血が必要」。FR-017）と「再検」（FR-018）を追加し、受付不可の理由を電子カルテの `OrderList.tsx` にも表示する
+- [X] T082 [US5] `ui/src/systems/lis/ResultEntry.tsx` に、項目ごとの報告対象の選択と「一部報告」を追加し、既存の `partial` 報告がある場合の全項目報告（DiagnosticReport を `ifMatch` 付き PUT で `final`）に対応する（FR-016。T079 に依存）
+- [X] T083 [US5] `ui/src/scenario/s1Cancel.ts`・`ui/src/scenario/s1Reject.ts`・`ui/src/scenario/s1Rerun.ts`・`ui/src/scenario/s1Partial.ts` を contracts/ui-screens.md のステップ構成で定義し（データが変わらないステップには `traffic` の条件を付ける）、`ui/src/app/ProgressPanel.tsx` のシナリオ選択に追加する（FR-030。T068、T079 に依存）
 
 **Checkpoint**: 全ユーザーストーリーが独立に動作する
 

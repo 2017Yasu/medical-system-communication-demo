@@ -201,7 +201,16 @@ public final class LabFlow {
 
     /** 全項目の結果を承認・報告する（依頼が一部報告済みなら、その DiagnosticReport を final に更新する）。 */
     public Bundle reportAll(Ids ids, String tech) {
-        return report(ids, tech, allItemKeys(ids), true);
+        // 先行報告済みの項目は除き、残りを報告する
+        java.util.Set<String> reported = new java.util.HashSet<>();
+        observations(ids.sr()).forEach(o -> reported.add(o.getCode().getCodingFirstRep().getCode()));
+        List<String> remaining = new ArrayList<>();
+        for (String key : allItemKeys(ids)) {
+            if (!reported.contains(findItem(key).at("/coding/code").asText())) {
+                remaining.add(key);
+            }
+        }
+        return report(ids, tech, remaining, true);
     }
 
     /** 指定した項目だけを先行して報告する（DiagnosticReport は partial、Task の状態は変えない）。 */

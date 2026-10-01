@@ -30,7 +30,7 @@ test("S1 を 3 つの画面で手動操作して最後まで通す", async ({ br
   // 2. 検査部の画面に、通知で新着依頼が現れる（受付はまだできない）
   const lisRow = lis.getByTestId("task-1");
   await expect(lisRow).toContainText("未採取", SYNC);
-  await expect(lisRow.getByRole("button", { name: "受付" })).toBeDisabled();
+  await expect(lisRow.getByRole("button", { name: "受付", exact: true })).toBeDisabled();
   await expect(lisRow).toContainText("採血の記録後に受付できます");
 
   // 3. 看護師が採血を記録（作業の状態「依頼済み」と依頼の状態「有効」は変わらない）
@@ -40,10 +40,10 @@ test("S1 を 3 つの画面で手動操作して最後まで通す", async ({ br
   await expect(docRow).toContainText("採取済", SYNC);
   await expect(docRow).toContainText("依頼済み");
   await expect(docRow).toContainText("有効（依頼中）");
-  await expect(lisRow.getByRole("button", { name: "受付" })).toBeEnabled(SYNC);
+  await expect(lisRow.getByRole("button", { name: "受付", exact: true })).toBeEnabled(SYNC);
 
   // 4. 技師 A が受付 → 電子カルテにも「受付済み」と担当者が出る
-  await lisRow.getByRole("button", { name: "受付" }).click();
+  await lisRow.getByRole("button", { name: "受付", exact: true }).click();
   await expect(lisRow).toContainText("受付済み");
   await expect(lisRow).toContainText("検体到着");
   await expect(docRow).toContainText("受付済み", SYNC);
@@ -90,13 +90,13 @@ test("2 つの検体検査システムの画面が、片方の受付を通知で
   await nurse.getByRole("button", { name: "採血を記録" }).click();
   const rowA = techA.getByTestId("task-1");
   const rowB = techB.getByTestId("task-1");
-  await expect(rowA.getByRole("button", { name: "受付" })).toBeEnabled(SYNC);
-  await expect(rowB.getByRole("button", { name: "受付" })).toBeEnabled(SYNC);
+  await expect(rowA.getByRole("button", { name: "受付", exact: true })).toBeEnabled(SYNC);
+  await expect(rowB.getByRole("button", { name: "受付", exact: true })).toBeEnabled(SYNC);
 
   // 技師 A が受付すると、技師 B の画面も通知で更新され、受付ボタンが消える（同時操作の事故の再現は S2）
-  await rowA.getByRole("button", { name: "受付" }).click();
+  await rowA.getByRole("button", { name: "受付", exact: true }).click();
   await expect(rowA).toContainText("受付済み");
   await expect(rowB).toContainText("受付済み", SYNC); // 技師 B の画面も通知で更新される
-  await expect(rowB.getByRole("button", { name: "受付" })).toHaveCount(0);
+  await expect(rowB.getByRole("button", { name: "受付", exact: true })).toHaveCount(0);
   await expect(rowB).toContainText("技師 A");
 });
