@@ -100,7 +100,7 @@ specs/001-lab-order-workflow/
 ### Source Code (repository root)
 
 ```text
-compose.yaml                      # サービス demo（ポート 8080）
+compose.yml                       # サービス demo（ポート 8080）
 Dockerfile                        # UI ビルド → サーバービルド → JRE 実行のマルチステージ
 .gitignore                        # .cache/、ビルド成果物（server/target/、server/src/main/resources/static/、ui/node_modules/、ui/dist/ など）
 .dockerignore                     # .cache/、ビルド成果物

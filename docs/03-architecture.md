@@ -148,7 +148,7 @@ docker compose down      # 停止（インメモリのためデータは消え�
 | server-build | Maven + JDK | 静的ファイルを取り込み、実行可能 JAR をビルド |
 | runtime | JRE | 実行可能 JAR だけを含む最終イメージ |
 
-- `compose.yaml` のサービスは `demo` の 1 つ。ポート、If-Match ポリシーの既定値、Slot タイムアウト秒数などは環境変数で設定する。
+- `compose.yml` のサービスは `demo` の 1 つ。ポート、If-Match ポリシーの既定値、Slot タイムアウト秒数などは環境変数で設定する。
 - 開発時は UI を Vite の開発サーバー（ホットリロード）で動かし、FHIR へのリクエストをコンテナにプロキシする構成も使えるようにする。
 
 ### オフライン運用
