@@ -159,17 +159,17 @@ SC-006（通信の取りこぼし 0 件）が自動テストを要求してい�
 
 ### Tests for User Story 3
 
-- [ ] T065 [P] [US3] `ui/tests/unit/scenarioRunner.test.ts`：FHIR クライアントを模擬して、`next()` が次のステップの `run` をそのステップの `actor` の `X-Demo-Client` で実行すること、`back()` が `POST /demo/reset` の後にステップ 1〜(n-1) を順に再実行すること、`detectStep()` が contracts/ui-screens.md「ステップの判定」のとおり、データの条件と通信の条件（前のステップの基準 `seq` より大きい `seq` の TrafficRecord）の両方で現在のステップを判定すること（手動操作でも進む）を確認する。特に、データが同じステップ 1 と 2、4 と 5、7 と 8 が通信の条件で区別されること、ping がその原因の要求より先に届いても `seq` の順で正しく判定されること、auto のステップで「次へ」を押すと最大 5 秒待ち、条件が満たされなければ「通知を待っています」の状態になることを確認する（research.md R-13）
-- [ ] T066 [P] [US3] `ui/tests/e2e/presentation.spec.ts`：`/stage?mode=presentation` で `s1-main` を選び、「次へ」を 8 回押して各ステップの解説と、電子カルテ・検体検査システム・通信モニタの表示（quickstart.md §4 の表）を確認する。「戻る」でステップ 7 完了時点の状態、「初期化」で 10 秒以内に初期状態に戻ること（SC-003）、1920×1080 と 1280×720 で横スクロールが出ないことを確認する
+- [X] T065 [P] [US3] `ui/tests/unit/scenarioRunner.test.ts`：FHIR クライアントを模擬して、`next()` が次のステップの `run` をそのステップの `actor` の `X-Demo-Client` で実行すること、`back()` が `POST /demo/reset` の後にステップ 1〜(n-1) を順に再実行すること、`detectStep()` が contracts/ui-screens.md「ステップの判定」のとおり、データの条件と通信の条件（前のステップの基準 `seq` より大きい `seq` の TrafficRecord）の両方で現在のステップを判定すること（手動操作でも進む）を確認する。特に、データが同じステップ 1 と 2、4 と 5、7 と 8 が通信の条件で区別されること、ping がその原因の要求より先に届いても `seq` の順で正しく判定されること、auto のステップで「次へ」を押すと最大 5 秒待ち、条件が満たされなければ「通知を待っています」の状態になることを確認する（research.md R-13）
+- [X] T066 [P] [US3] `ui/tests/e2e/presentation.spec.ts`：`/stage?mode=presentation` で `s1-main` を選び、「次へ」を 8 回押して各ステップの解説と、電子カルテ・検体検査システム・通信モニタの表示（quickstart.md §4 の表）を確認する。「戻る」でステップ 7 完了時点の状態、「初期化」で 10 秒以内に初期状態に戻ること（SC-003）、1920×1080 と 1280×720 で横スクロールが出ないことを確認する
 
 ### Implementation for User Story 3
 
-- [ ] T067 [P] [US3] `ui/src/scenario/types.ts`：contracts/ui-screens.md「シナリオ定義の形式」の `ScenarioId`・`Scenario`・`ScenarioStep`・`ExpectedState`・`ScenarioContext`（actor ごとの FHIR クライアントと、直近に取得したリソース・ETag の参照）を定義する
-- [ ] T068 [US3] `ui/src/scenario/s1Main.ts`：docs/02 S1 の 8 ステップを定義する。各ステップに `title`、`actor`（contracts/ui-screens.md「ステップの判定」の表のとおり。**ステップ 2 と 5 が `auto`（`run` 無し）**、ステップ 8 は `ehr-doctor` で `run` は結果表示を開く）、`target`（自習モードで強調する画面と `data-guide` の値。auto は画面のみ）、T047 のビルダーを使う `run`、data-model.md §3.5 に基づくデータの条件と同表の通信の条件（`traffic`）からなる `expected`、`explanation.business`（医療従事者向け）と `explanation.fhir`（技術者向け。例：「ServiceRequest は active のまま、Task だけが accepted に進む」）を書く（T047、T067 に依存）
-- [ ] T069 [US3] `ui/src/scenario/runner.ts`：`ScenarioRunner`（`start(scenario)`・`next()`・`back()`・`reset()`・`detectStep(state)`、現在のステップの購読）を実装する。`detectStep` は contracts/ui-screens.md「ステップの判定」に従い、T060 の `trafficStore` から受け取る TrafficRecord ごとに判定し直す。`next()` は auto 以外なら `run` を実行し、完了の判定を最大 5 秒待つ（満たされなければ「通知を待っています」）。`back()` は `/demo/reset` → ステップ 1〜(n-1) の再実行（FR-027）（T065 を通す。T040、T060、T067 に依存）
-- [ ] T070 [US3] `ui/src/app/ProgressPanel.tsx`：シナリオの選択、「次へ」「戻る」「初期化」、現在のステップ番号とタイトル、業務上の意味と FHIR 上の意味の解説を表示する（FR-026。T069 に依存）
-- [ ] T071 [US3] `ui/src/app/StageView.tsx` と `ui/src/app/stage.module.css`：電子カルテ（医師 / 看護師の切替）・検体検査システム（技師 A）・通信モニタの 3 領域と進行パネルを 1 画面に並べ、`/stage?mode=presentation` に接続する。各領域は個別ウィンドウと同じ部品（T053、T055、T064）を使う。1920×1080 で後方から読める文字の大きさ、1280×720 で横スクロール無し（FR-028）（T070 に依存）
-- [ ] T072 [US3] `ui/src/app/Launcher.tsx`：`/` に講演モード・自習モード・個別ウィンドウ（電子カルテ医師・看護師、検体検査システム技師 A・B、通信モニタ）への入口を置く（contracts/ui-screens.md「ルート」）
+- [X] T067 [P] [US3] `ui/src/scenario/types.ts`：contracts/ui-screens.md「シナリオ定義の形式」の `ScenarioId`・`Scenario`・`ScenarioStep`・`ExpectedState`・`ScenarioContext`（actor ごとの FHIR クライアントと、直近に取得したリソース・ETag の参照）を定義する
+- [X] T068 [US3] `ui/src/scenario/s1Main.ts`：docs/02 S1 の 8 ステップを定義する。各ステップに `title`、`actor`（contracts/ui-screens.md「ステップの判定」の表のとおり。**ステップ 2 と 5 が `auto`（`run` 無し）**、ステップ 8 は `ehr-doctor` で `run` は結果表示を開く）、`target`（自習モードで強調する画面と `data-guide` の値。auto は画面のみ）、T047 のビルダーを使う `run`、data-model.md §3.5 に基づくデータの条件と同表の通信の条件（`traffic`）からなる `expected`、`explanation.business`（医療従事者向け）と `explanation.fhir`（技術者向け。例：「ServiceRequest は active のまま、Task だけが accepted に進む」）を書く（T047、T067 に依存）
+- [X] T069 [US3] `ui/src/scenario/runner.ts`：`ScenarioRunner`（`start(scenario)`・`next()`・`back()`・`reset()`・`detectStep(state)`、現在のステップの購読）を実装する。`detectStep` は contracts/ui-screens.md「ステップの判定」に従い、T060 の `trafficStore` から受け取る TrafficRecord ごとに判定し直す。`next()` は auto 以外なら `run` を実行し、完了の判定を最大 5 秒待つ（満たされなければ「通知を待っています」）。`back()` は `/demo/reset` → ステップ 1〜(n-1) の再実行（FR-027）（T065 を通す。T040、T060、T067 に依存）
+- [X] T070 [US3] `ui/src/app/ProgressPanel.tsx`：シナリオの選択、「次へ」「戻る」「初期化」、現在のステップ番号とタイトル、業務上の意味と FHIR 上の意味の解説を表示する（FR-026。T069 に依存）
+- [X] T071 [US3] `ui/src/app/StageView.tsx` と `ui/src/app/stage.module.css`：電子カルテ（医師 / 看護師の切替）・検体検査システム（技師 A）・通信モニタの 3 領域と進行パネルを 1 画面に並べ、`/stage?mode=presentation` に接続する。各領域は個別ウィンドウと同じ部品（T053、T055、T064）を使う。1920×1080 で後方から読める文字の大きさ、1280×720 で横スクロール無し（FR-028）（T070 に依存）
+- [X] T072 [US3] `ui/src/app/Launcher.tsx`：`/` に講演モード・自習モード・個別ウィンドウ（電子カルテ医師・看護師、検体検査システム技師 A・B、通信モニタ）への入口を置く（contracts/ui-screens.md「ルート」）
 
 **Checkpoint**: 講演モードで S1 を通しで実演できる
 

@@ -1,15 +1,17 @@
 import { expect, test } from "@playwright/test";
+import { PageBag } from "./pages";
 
 const SYNC = { timeout: 2000 };
 
+let bag: PageBag;
+test.afterEach(async () => bag.closeAll());
+
 test("通信モニタ：通信がシーケンス図に出て、詳細と版の履歴を開ける", async ({ browser, request }) => {
   await request.post("/demo/reset");
-  const monitor = await (await browser.newContext()).newPage();
-  const doctor = await (await browser.newContext()).newPage();
-  const lis = await (await browser.newContext()).newPage();
-  await monitor.goto("/monitor");
-  await doctor.goto("/ehr?role=doctor");
-  await lis.goto("/lis?tech=tech-a");
+  bag = new PageBag(browser);
+  const monitor = await bag.open("/monitor");
+  const doctor = await bag.open("/ehr?role=doctor");
+  const lis = await bag.open("/lis?tech=tech-a");
   // 各画面が通知を登録して接続するまで待つ（登録の通信も図に出る）
   const diagram = monitor.getByTestId("sequence-diagram");
   await expect(diagram).toContainText("PUT Subscription/ehr-dr-x（通知の登録）", { timeout: 5000 });
@@ -45,8 +47,7 @@ test("通信モニタ：通信がシーケンス図に出て、詳細と版の�
   expect(await count()).toBe(before);
 
   // 受付 → Task の版が増え、履歴から「その版を作った通信」へ辿れる
-  const nurse = await (await browser.newContext()).newPage();
-  await nurse.goto("/ehr?role=nurse");
+  const nurse = await bag.open("/ehr?role=nurse");
   await nurse.getByRole("button", { name: "採血を記録" }).click();
   await lis.getByRole("button", { name: "受付" }).click();
   await expect(lis.getByTestId("task-1")).toContainText("受付済み");
@@ -60,5 +61,7 @@ test("通信モニタ：通信がシーケンス図に出て、詳細と版の�
 
   // 初期化で図が空に戻る
   await request.post("/demo/reset");
-  await expect(monitor.getByTestId("traffic-count")).toContainText("通信 1 件", SYNC);
+  // （開いている他の画面は通知を登録し直すので、その通信は増える。以前の通信が消えて初期化から始まっていることを確認する）
+  await expect(diagram).not.toContainText("POST Transaction（一括登録）", SYNC);
+  await expect(diagram.getByTestId("seq-1")).toContainText("初期化", SYNC);
 });

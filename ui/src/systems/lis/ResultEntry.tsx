@@ -1,7 +1,7 @@
 import { useState } from "react";
-import type { DiagnosticReport, Observation, Specimen } from "fhir/r4";
 import { FhirError, type FhirClient } from "../../fhir/client";
-import { allItemKeys, buildFinalReportTransaction, labItem } from "../../fhir/builders/labOrder";
+import { allItemKeys, labItem } from "../../fhir/builders/labOrder";
+import { submitFinalReport } from "../../fhir/labActions";
 import { orderNumber, type OrderRow } from "../shared/orders";
 
 /** 結果値を入力して承認・報告する（FR-015）。先行報告済みの項目は除き、残りを報告する。 */
@@ -29,30 +29,11 @@ export function ResultEntry({
   const submit = async () => {
     setBusy(true);
     try {
-      const srId = row.sr.resource.id!;
-      const specimenId = row.sr.resource.specimen?.[0]?.reference?.split("/")[1] ?? "";
-      const [specimen, reports, observations] = await Promise.all([
-        client.read<Specimen>("Specimen", specimenId),
-        client.search<DiagnosticReport>("DiagnosticReport", { "based-on": `ServiceRequest/${srId}` }),
-        client.search<Observation>("Observation", { "based-on": `ServiceRequest/${srId}` }),
-      ]);
-      const reportedCodes = new Set(observations.map((o) => o.resource.code?.coding?.[0]?.code));
-      const remaining = keys.filter((k) => !reportedCodes.has(labItem(k).coding.code));
-      await client.transaction(
-        buildFinalReportTransaction({
-          serviceRequest: row.sr.resource,
-          serviceRequestEtag: row.sr.etag,
-          task: row.task!.resource,
-          taskEtag: row.task!.etag,
-          specimen: specimen.resource,
-          techRoleId,
-          now: new Date(),
-          values: Object.fromEntries(keys.map((k) => [k, parsed(k)])),
-          itemKeys: remaining,
-          existingReport: reports[0]?.resource,
-          existingReportEtag: reports[0]?.etag,
-        }),
-        "結果の報告",
+      await submitFinalReport(
+        client,
+        { sr: row.sr, task: row.task! },
+        techRoleId,
+        Object.fromEntries(keys.map((k) => [k, parsed(k)])),
       );
       onDone();
     } catch (e) {

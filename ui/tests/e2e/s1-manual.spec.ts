@@ -1,16 +1,18 @@
 import { expect, test } from "@playwright/test";
+import { PageBag } from "./pages";
+
+let bag: PageBag;
+test.afterEach(async () => bag.closeAll());
 
 // SC-002：操作の結果は、関係する他の画面に 2 秒以内に反映される
 const SYNC = { timeout: 2000 };
 
 test("S1 を 3 つの画面で手動操作して最後まで通す", async ({ browser, request }) => {
   await request.post("/demo/reset");
-  const doctor = await (await browser.newContext()).newPage();
-  const nurse = await (await browser.newContext()).newPage();
-  const lis = await (await browser.newContext()).newPage();
-  await doctor.goto("/ehr?role=doctor");
-  await nurse.goto("/ehr?role=nurse");
-  await lis.goto("/lis?tech=tech-a");
+  bag = new PageBag(browser);
+  const doctor = await bag.open("/ehr?role=doctor");
+  const nurse = await bag.open("/ehr?role=nurse");
+  const lis = await bag.open("/lis?tech=tech-a");
   await expect(doctor.getByRole("heading", { name: "検体検査を依頼する" })).toBeVisible();
   await expect(doctor.getByRole("button", { name: "依頼する" })).toBeDisabled(); // セット未選択
 
@@ -61,8 +63,8 @@ test("S1 を 3 つの画面で手動操作して最後まで通す", async ({ br
   await lis.getByRole("button", { name: "承認・報告" }).click();
   await expect(lisRow).toContainText("完了");
   await expect(docRow).toContainText("報告済", SYNC);
-  await expect(docRow.locator("td").nth(3)).toContainText("完了", SYNC); // 依頼の状態
-  await expect(docRow.locator("td").nth(4)).toContainText("完了"); // 作業の状態
+  await expect(docRow.locator("td").nth(1)).toContainText("完了", SYNC); // 依頼の状態
+  await expect(docRow.locator("td").nth(2)).toContainText("完了"); // 作業の状態
 
   // 8. 医師が結果を確認：8 項目、白血球数と ALT に H
   await docRow.getByRole("button", { name: "結果を見る" }).click();
@@ -77,14 +79,11 @@ test("S1 を 3 つの画面で手動操作して最後まで通す", async ({ br
 
 test("2 つの検体検査システムの画面が、片方の受付を通知で受けて同期する", async ({ browser, request }) => {
   await request.post("/demo/reset");
-  const doctor = await (await browser.newContext()).newPage();
-  const nurse = await (await browser.newContext()).newPage();
-  const techA = await (await browser.newContext()).newPage();
-  const techB = await (await browser.newContext()).newPage();
-  await doctor.goto("/ehr?role=doctor");
-  await nurse.goto("/ehr?role=nurse");
-  await techA.goto("/lis?tech=tech-a");
-  await techB.goto("/lis?tech=tech-b");
+  bag = new PageBag(browser);
+  const doctor = await bag.open("/ehr?role=doctor");
+  const nurse = await bag.open("/ehr?role=nurse");
+  const techA = await bag.open("/lis?tech=tech-a");
+  const techB = await bag.open("/lis?tech=tech-b");
   await doctor.getByLabel(/血算/).check();
   await doctor.getByRole("button", { name: "依頼する" }).click();
   await expect(nurse.getByTestId("collect-1")).toBeVisible(SYNC);

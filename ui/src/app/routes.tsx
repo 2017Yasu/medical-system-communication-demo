@@ -1,4 +1,6 @@
 import { Route, Routes } from "react-router";
+import { Launcher } from "./Launcher";
+import { StageView } from "./StageView";
 import { MonitorScreen } from "../monitor/MonitorScreen";
 import { EhrScreen } from "../systems/ehr/EhrScreen";
 import { LisScreen } from "../systems/lis/LisScreen";
@@ -16,8 +18,8 @@ function Placeholder({ title }: { title: string }) {
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Placeholder title="医療システム連携デモ" />} />
-      <Route path="/stage" element={<Placeholder title="ステージビュー" />} />
+      <Route path="/" element={<Launcher />} />
+      <Route path="/stage" element={<StageView />} />
       <Route path="/ehr" element={<EhrScreen />} />
       <Route path="/lis" element={<LisScreen />} />
       <Route path="/monitor" element={<MonitorScreen />} />

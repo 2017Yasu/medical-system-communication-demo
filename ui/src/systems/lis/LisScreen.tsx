@@ -74,12 +74,9 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
             <table className="data">
               <thead>
                 <tr>
-                  <th>オーダー番号</th>
-                  <th>患者</th>
-                  <th>検査</th>
+                  <th>依頼</th>
                   <th>依頼の状態</th>
                   <th>作業の状態</th>
-                  <th>担当</th>
                   <th />
                 </tr>
               </thead>
@@ -91,16 +88,20 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
                   const busy = busyId === id;
                   return (
                     <tr key={id} data-testid={`task-${id}`}>
-                      <td>{orderNumber(row.sr.resource)}</td>
-                      <td>{row.patientName}</td>
-                      <td>{orderedSetNames(row.sr.resource)}</td>
+                      <td>
+                        <div>
+                          <strong>{row.patientName}</strong>
+                        </div>
+                        <div>{orderedSetNames(row.sr.resource)}</div>
+                        <div className="muted">{orderNumber(row.sr.resource)}</div>
+                      </td>
                       <td>
                         <SrStatus status={row.sr.resource.status} />
                       </td>
                       <td>
                         <TaskStatus task={task} />
+                        <div className="muted">担当：{ownerLabel(row)}</div>
                       </td>
-                      <td>{ownerLabel(row)}</td>
                       <td>
                         {task?.status === "requested" && biz === "not-collected" && (
                           <>

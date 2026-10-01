@@ -1,0 +1,97 @@
+// 画面の操作とシナリオの自動実行が共有する、検体検査の操作（FHIR への要求の送信）。
+import type { DiagnosticReport, Observation, ServiceRequest, Specimen, Task } from "fhir/r4";
+import type { FhirClient, Versioned } from "./client";
+import {
+  allItemKeys,
+  buildAcceptPatch,
+  buildCollectionTransaction,
+  buildFinalReportTransaction,
+  buildOrderTransaction,
+  buildStartPatch,
+  labItem,
+  nextOrderNumber,
+  ORDERING_DOCTOR,
+} from "./builders/labOrder";
+
+export interface CurrentOrder {
+  sr: Versioned<ServiceRequest>;
+  task: Versioned<Task>;
+}
+
+const refOf = (reference?: string) => reference?.split("/")[1] ?? "";
+
+/** 医師 X が出した最新の依頼と、その作業。無ければ null。 */
+export async function fetchLatestOrder(client: FhirClient): Promise<CurrentOrder | null> {
+  const srs = await client.search<ServiceRequest>("ServiceRequest", { requester: ORDERING_DOCTOR });
+  const sr = srs[0];
+  if (!sr) return null;
+  const tasks = await client.search<Task>("Task", { focus: `ServiceRequest/${sr.resource.id}` });
+  return tasks[0] ? { sr, task: tasks[0] } : null;
+}
+
+export async function placeOrder(client: FhirClient, patientId: string, sets: string[], now = new Date()): Promise<void> {
+  const existing = await client.search<ServiceRequest>("ServiceRequest", { requester: ORDERING_DOCTOR });
+  await client.transaction(
+    buildOrderTransaction({ patientId, sets, orderNumber: nextOrderNumber(now, existing.length), now }),
+    "検査の依頼",
+  );
+}
+
+export async function recordCollection(client: FhirClient, order: CurrentOrder, now = new Date()): Promise<void> {
+  const specimen = await client.read<Specimen>("Specimen", refOf(order.sr.resource.specimen?.[0]?.reference));
+  await client.transaction(
+    buildCollectionTransaction({
+      specimen: specimen.resource,
+      specimenEtag: specimen.etag,
+      task: order.task.resource,
+      taskEtag: order.task.etag,
+      now,
+    }),
+    "採血の記録",
+  );
+}
+
+export async function acceptTask(client: FhirClient, order: CurrentOrder, techRoleId: string, now = new Date()): Promise<void> {
+  await client.patch("Task", order.task.resource.id!, buildAcceptPatch(techRoleId, now), order.task.etag, "受付");
+}
+
+export async function startTask(client: FhirClient, order: CurrentOrder, now = new Date()): Promise<void> {
+  await client.patch("Task", order.task.resource.id!, buildStartPatch(now), order.task.etag, "測定開始");
+}
+
+/**
+ * 結果の承認・報告。先行報告済みの項目は除き、残りを報告する（全項目が揃うので依頼まで完了にする）。
+ * values を省略した項目は FHIR マスタの既定値。
+ */
+export async function submitFinalReport(
+  client: FhirClient,
+  order: CurrentOrder,
+  techRoleId: string,
+  values?: Record<string, number>,
+  now = new Date(),
+): Promise<void> {
+  const srId = order.sr.resource.id!;
+  const [specimen, reports, observations] = await Promise.all([
+    client.read<Specimen>("Specimen", refOf(order.sr.resource.specimen?.[0]?.reference)),
+    client.search<DiagnosticReport>("DiagnosticReport", { "based-on": `ServiceRequest/${srId}` }),
+    client.search<Observation>("Observation", { "based-on": `ServiceRequest/${srId}` }),
+  ]);
+  const keys = allItemKeys(order.sr.resource);
+  const reported = new Set(observations.map((o) => o.resource.code?.coding?.[0]?.code));
+  await client.transaction(
+    buildFinalReportTransaction({
+      serviceRequest: order.sr.resource,
+      serviceRequestEtag: order.sr.etag,
+      task: order.task.resource,
+      taskEtag: order.task.etag,
+      specimen: specimen.resource,
+      techRoleId,
+      now,
+      values,
+      itemKeys: keys.filter((k) => !reported.has(labItem(k).coding.code)),
+      existingReport: reports[0]?.resource,
+      existingReportEtag: reports[0]?.etag,
+    }),
+    "結果の報告",
+  );
+}

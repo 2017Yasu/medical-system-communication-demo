@@ -61,9 +61,7 @@ export function NurseView() {
           <table className="data">
             <thead>
               <tr>
-                <th>オーダー番号</th>
-                <th>患者</th>
-                <th>検査</th>
+                <th>依頼</th>
                 <th />
               </tr>
             </thead>
@@ -72,9 +70,13 @@ export function NurseView() {
                 const id = row.sr.resource.id!;
                 return (
                   <tr key={id} data-testid={`collect-${id}`}>
-                    <td>{orderNumber(row.sr.resource)}</td>
-                    <td>{row.patientName}</td>
-                    <td>{orderedSetNames(row.sr.resource)}</td>
+                    <td>
+                      <div>
+                        <strong>{row.patientName}</strong>
+                      </div>
+                      <div>{orderedSetNames(row.sr.resource)}</div>
+                      <div className="muted">{orderNumber(row.sr.resource)}</div>
+                    </td>
                     <td>
                       <button type="button" className="primary" disabled={busyId === id} onClick={() => collect(row)} data-guide={`collect-${id}`}>
                         {busyId === id ? "記録中…" : "採血を記録"}

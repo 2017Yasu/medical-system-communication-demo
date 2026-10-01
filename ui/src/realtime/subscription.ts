@@ -10,14 +10,24 @@ export interface SubscriptionSpec {
   reason: string;
 }
 
-/** 開いた時点で GET し、無ければ PUT で作成する（既にあればそれを使う）。 */
-export async function ensureSubscription(client: FhirClient, spec: SubscriptionSpec): Promise<void> {
+/** 同じ ID の Subscription が既にあるか（GET で確認）。 */
+async function exists(client: FhirClient, id: string): Promise<boolean> {
   try {
-    await client.read<Subscription>("Subscription", spec.id);
-    return;
+    await client.read<Subscription>("Subscription", id);
+    return true;
   } catch (e) {
-    if (!(e instanceof FhirError) || e.status !== 404) throw e;
+    if (e instanceof FhirError && e.status === 404) return false;
+    throw e;
   }
+}
+
+/**
+ * 開いた時点で GET し、無ければ PUT で作成する（既にあればそれを使う）。
+ * 同じ画面を複数のウィンドウで開くと同じ ID を同時に作ろうとして、後から来た PUT が失敗する（既存の更新には If-Match が必要）。
+ * その場合は、他の画面が先に作ったとみなして、あらためて確認する。
+ */
+export async function ensureSubscription(client: FhirClient, spec: SubscriptionSpec): Promise<void> {
+  if (await exists(client, spec.id)) return;
   const resource: Subscription = {
     resourceType: "Subscription",
     id: spec.id,
@@ -26,7 +36,14 @@ export async function ensureSubscription(client: FhirClient, spec: SubscriptionS
     criteria: spec.criteria,
     channel: { type: "websocket", payload: "application/fhir+json" },
   };
-  await client.update("Subscription", spec.id, resource, null, "通知の登録");
+  try {
+    await client.update("Subscription", spec.id, resource, null, "通知の登録");
+  } catch (e) {
+    if (e instanceof FhirError && (e.status === 400 || e.status === 412 || e.status === 409) && (await exists(client, spec.id))) {
+      return;
+    }
+    throw e;
+  }
 }
 
 export interface SubscriptionSocketHandlers {

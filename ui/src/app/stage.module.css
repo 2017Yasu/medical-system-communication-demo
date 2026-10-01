@@ -1,0 +1,14 @@
+.stage { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--c-bg); }
+.top { padding: var(--sp-2) var(--sp-3); flex: 0 0 auto; max-height: 38vh; overflow: auto; }
+.header { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-2); }
+.header h1 { margin: 0; font-size: var(--fs-large); }
+.grid { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2); padding: 0 var(--sp-3) var(--sp-3); }
+.region { min-height: 0; display: flex; flex-direction: column; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); overflow: hidden; }
+.regionTitle { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--c-border); font-weight: 700; background: #eef2f6; }
+.regionBody { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.regionBody :global(.screen) { padding: var(--sp-2); gap: var(--sp-2); }
+.regionBody :global(table.data) { font-size: var(--fs-small); }
+.regionBody :global(table.data th), .regionBody :global(table.data td) { padding: var(--sp-1) var(--sp-2); word-break: break-word; }
+.tabs { display: inline-flex; gap: var(--sp-1); margin-left: auto; }
+.tabs button { padding: 2px var(--sp-2); font-size: var(--fs-small); }
+.tabs button[aria-pressed="true"] { background: var(--c-primary); color: var(--c-primary-text); border-color: var(--c-primary); }
