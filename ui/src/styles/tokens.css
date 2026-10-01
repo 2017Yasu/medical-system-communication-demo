@@ -1,0 +1,59 @@
+/* フォントは @fontsource/noto-sans-jp（SIL OFL 1.1）をビルド時に同梱する。CDN は使わない（原則 VII） */
+@import "@fontsource/noto-sans-jp/400.css";
+@import "@fontsource/noto-sans-jp/700.css";
+
+:root {
+  --font-sans: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Courier New", monospace;
+
+  /* 文字サイズ：1920×1080 のプロジェクタで後方から読める大きさを基準にする */
+  --fs-base: 20px;
+  --fs-small: 16px;
+  --fs-large: 24px;
+  --fs-title: 32px;
+
+  /* 色 */
+  --c-bg: #f5f7fa;
+  --c-surface: #ffffff;
+  --c-text: #1b2733;
+  --c-muted: #5b6b7b;
+  --c-border: #d3dce6;
+  --c-primary: #0b6bcb;
+  --c-primary-text: #ffffff;
+  --c-ok: #1a7f37;
+  --c-warn: #9a6700;
+  --c-error: #cf222e;
+  --c-highlight: #fff3b0;
+
+  /* 余白 */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 16px;
+  --sp-4: 24px;
+  --sp-5: 32px;
+
+  --radius: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  color: var(--c-text);
+  background: var(--c-bg);
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}

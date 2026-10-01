@@ -1,0 +1,9 @@
+# 起動: docker compose up   /   停止: docker compose down（データはインメモリ。次回は初期状態）
+services:
+  demo:
+    build: .
+    image: medical-system-communication-demo:latest
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"

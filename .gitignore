@@ -1,0 +1,21 @@
+# FHIR packages fetched by scripts/fetch-jp-packages.sh (not redistributed)
+.cache/
+
+# Build outputs
+server/target/
+server/src/main/resources/static/
+ui/node_modules/
+ui/dist/
+ui/test-results/
+ui/playwright-report/
+
+# Editor / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+.env*

@@ -1,0 +1,16 @@
+.git/
+.cache/
+.specify/
+.claude/
+docs/
+specs/
+server/target/
+server/src/main/resources/static/
+ui/node_modules/
+ui/dist/
+ui/test-results/
+ui/playwright-report/
+.idea/
+.vscode/
+*.log
+.env*
