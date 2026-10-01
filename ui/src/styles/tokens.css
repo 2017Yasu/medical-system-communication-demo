@@ -4,7 +4,7 @@
 
 :root {
   --font-sans: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
-  --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Courier New", monospace;
+  --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Courier New", "Noto Sans JP", monospace;
 
   /* 文字サイズ：1920×1080 のプロジェクタで後方から読める大きさを基準にする */
   --fs-base: 20px;

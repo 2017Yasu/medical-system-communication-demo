@@ -52,6 +52,13 @@ class TrafficCaptureFilterTest {
                         resp.getOutputStream().write(chunk);
                     }
                 }
+                case "/gzip" -> {
+                    resp.setContentType("application/fhir+json");
+                    resp.setHeader("Content-Encoding", "gzip");
+                    try (java.util.zip.GZIPOutputStream gz = new java.util.zip.GZIPOutputStream(resp.getOutputStream())) {
+                        gz.write("{\"resourceType\":\"Bundle\",\"memo\":\"圧縮された応答\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    }
+                }
                 case "/notify" -> {
                     LOG.add(LOG.notification("lis-lab-dept", "lis-tech-a", "Task/1/_history/2"));
                     resp.setHeader("ETag", "W/\"2\"");
@@ -148,6 +155,16 @@ class TrafficCaptureFilterTest {
         assertThat(post.request().truncated()).isTrue();
         assertThat(post.response().truncated()).isTrue();
         assertThat(post.request().body()).hasSize(TrafficCaptureFilter.MAX_BODY_BYTES);
+    }
+
+    @Test
+    void gzipCompressedResponsesAreRecordedAsPlainText() throws Exception {
+        HttpRequest req = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/fhir/gzip"))
+                .header("Accept-Encoding", "gzip").GET().build();
+        HttpResponse<byte[]> res = HTTP.send(req, HttpResponse.BodyHandlers.ofByteArray());
+        assertThat(res.headers().firstValue("Content-Encoding")).contains("gzip");
+        TrafficRecord r = LOG.after(0).get(0);
+        assertThat(r.response().body()).isEqualTo("{\"resourceType\":\"Bundle\",\"memo\":\"圧縮された応答\"}");
     }
 
     @Test

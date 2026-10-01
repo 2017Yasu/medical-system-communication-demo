@@ -57,7 +57,7 @@ public final class TrafficCaptureFilter implements Filter {
             String url = request.getRequestURI() + (request.getQueryString() == null ? "" : "?" + request.getQueryString());
             String client = request.getHeader("X-Demo-Client");
             Truncated reqBody = truncate(body);
-            Truncated resBody = truncate(capturing.captured.toByteArray());
+            Truncated resBody = truncate(decodeIfCompressed(capturing.captured.toByteArray(), response.getHeader("Content-Encoding")));
             log.add(new TrafficRecord(
                     seq,
                     TrafficLog.now(),
@@ -92,6 +92,18 @@ public final class TrafficCaptureFilter implements Filter {
             }
         }
         return out;
+    }
+
+    /** HAPI はクライアントが gzip を受け付けると圧縮して書き出すため、記録には展開した本文を使う。 */
+    private static byte[] decodeIfCompressed(byte[] bytes, String contentEncoding) {
+        if (contentEncoding == null || !contentEncoding.toLowerCase().contains("gzip") || bytes.length == 0) {
+            return bytes;
+        }
+        try (java.util.zip.GZIPInputStream in = new java.util.zip.GZIPInputStream(new ByteArrayInputStream(bytes))) {
+            return in.readAllBytes();
+        } catch (IOException e) {
+            return bytes;
+        }
     }
 
     private record Truncated(String text, boolean truncated) {}

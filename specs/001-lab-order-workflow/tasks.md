@@ -135,17 +135,17 @@ SC-006（通信の取りこぼし 0 件）が自動テストを要求してい�
 
 ### Tests for User Story 2
 
-- [ ] T057 [P] [US2] `server/src/test/java/jp/example/demo/integration/TrafficMonitorIT.java`：S1 の 8 ステップの要求を送りながら `/ws/monitor` を受信し、`traffic` イベントの件数・順序・`client`・ステータスが実際の要求と通知（`notification`）に一致し、`/demo/traffic` と `/demo/traffic?after=` の結果も一致すること（取りこぼし 0 件、SC-006）、初期化で `demo.reset` が届き記録が消えることを確認する（T015 に依存）
-- [ ] T058 [P] [US2] `ui/tests/unit/sequence.test.ts`：`X-Demo-Client` から列への対応（`ehr-doctor`・`ehr-nurse` → 「電子カルテ」、`lis-tech-a`・`lis-tech-b` → 「検体検査システム」、通知は「FHIR サーバー」→ 通知先の列）、矢印の注記（操作者・メソッド・リソース種別・業務上の意味）、`monitor` の通信を既定で非表示にする絞り込みを確認する（contracts/ui-screens.md）
+- [X] T057 [P] [US2] `server/src/test/java/jp/example/demo/integration/TrafficMonitorIT.java`：S1 の 8 ステップの要求を送りながら `/ws/monitor` を受信し、`traffic` イベントの件数・順序・`client`・ステータスが実際の要求と通知（`notification`）に一致し、`/demo/traffic` と `/demo/traffic?after=` の結果も一致すること（取りこぼし 0 件、SC-006）、初期化で `demo.reset` が届き記録が消えることを確認する（T015 に依存）
+- [X] T058 [P] [US2] `ui/tests/unit/sequence.test.ts`：`X-Demo-Client` から列への対応（`ehr-doctor`・`ehr-nurse` → 「電子カルテ」、`lis-tech-a`・`lis-tech-b` → 「検体検査システム」、通知は「FHIR サーバー」→ 通知先の列）、矢印の注記（操作者・メソッド・リソース種別・業務上の意味）、`monitor` の通信を既定で非表示にする絞り込みを確認する（contracts/ui-screens.md）
 
 ### Implementation for User Story 2
 
-- [ ] T059 [US2] `ui/src/monitor/sequenceModel.ts`：TrafficRecord をシーケンス図の要素（列・矢印・注記・結果）に変換する純粋関数を実装する（T058 を通す）
-- [ ] T060 [US2] `ui/src/monitor/useTraffic.ts`：開いた時点で先に `/ws/monitor` に接続してから `/demo/traffic` を取得し、両者を `seq` で重複を除いて結合し、常に `seq` の順に並べて保持する（配信は `seq` の順とは限らない。contracts/websocket.md）。`demo.reset` で空にする。シナリオの判定（T069）からも使えるよう、`ui/src/realtime/trafficStore.ts` に共通の保持部を置く（T041 に依存）
-- [ ] T061 [P] [US2] `ui/src/monitor/SequenceDiagram.tsx`：3 列（電子カルテ・FHIR サーバー・検体検査システム）の SVG シーケンス図。新しい通信に自動スクロールし、矢印の選択で詳細を開く。`monitor` の通信の表示切替を持つ（FR-023。T059 に依存）
-- [ ] T062 [P] [US2] `ui/src/monitor/JsonView.tsx` と `ui/src/monitor/TrafficDetail.tsx`：要求と応答の本文（整形・折りたたみ可能な JSON）、主要ヘッダ（`If-Match`・`ETag` を強調）、応答の業務上の意味（`toDisplayError` と成功時の「成功」）、`truncated` の表示（FR-024）
-- [ ] T063 [P] [US2] `ui/src/monitor/HistoryView.tsx`：リソース参照を受け取り、`X-Demo-Client: monitor` で `GET /fhir/{type}/{id}/_history` を取得して、版ごとの status・businessStatus・owner・更新日時と、Transaction の中で更新されたこと（通信記録の該当 `seq` へのリンク）を一覧表示する（FR-025、US2 シナリオ 3・4）
-- [ ] T064 [US2] `ui/src/monitor/MonitorScreen.tsx`：T060〜T063 を組み合わせた通信モニタの画面を `/monitor` ルートに接続する（T043 に依存）
+- [X] T059 [US2] `ui/src/monitor/sequenceModel.ts`：TrafficRecord をシーケンス図の要素（列・矢印・注記・結果）に変換する純粋関数を実装する（T058 を通す）
+- [X] T060 [US2] `ui/src/monitor/useTraffic.ts`：開いた時点で先に `/ws/monitor` に接続してから `/demo/traffic` を取得し、両者を `seq` で重複を除いて結合し、常に `seq` の順に並べて保持する（配信は `seq` の順とは限らない。contracts/websocket.md）。`demo.reset` で空にする。シナリオの判定（T069）からも使えるよう、`ui/src/realtime/trafficStore.ts` に共通の保持部を置く（T041 に依存）
+- [X] T061 [P] [US2] `ui/src/monitor/SequenceDiagram.tsx`：3 列（電子カルテ・FHIR サーバー・検体検査システム）の SVG シーケンス図。新しい通信に自動スクロールし、矢印の選択で詳細を開く。`monitor` の通信の表示切替を持つ（FR-023。T059 に依存）
+- [X] T062 [P] [US2] `ui/src/monitor/JsonView.tsx` と `ui/src/monitor/TrafficDetail.tsx`：要求と応答の本文（整形・折りたたみ可能な JSON）、主要ヘッダ（`If-Match`・`ETag` を強調）、応答の業務上の意味（`toDisplayError` と成功時の「成功」）、`truncated` の表示（FR-024）
+- [X] T063 [P] [US2] `ui/src/monitor/HistoryView.tsx`：リソース参照を受け取り、`X-Demo-Client: monitor` で `GET /fhir/{type}/{id}/_history` を取得して、版ごとの status・businessStatus・owner・更新日時と、Transaction の中で更新されたこと（通信記録の該当 `seq` へのリンク）を一覧表示する（FR-025、US2 シナリオ 3・4）
+- [X] T064 [US2] `ui/src/monitor/MonitorScreen.tsx`：T060〜T063 を組み合わせた通信モニタの画面を `/monitor` ルートに接続する（T043 に依存）
 
 **Checkpoint**: US1 と US2 がそれぞれ単独で動作する
 
