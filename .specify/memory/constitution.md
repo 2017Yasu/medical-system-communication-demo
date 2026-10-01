@@ -95,7 +95,8 @@
   流用したソースには元の著作権表示（BSD 系ライセンス）を残す。
 - **構成**: 1 コンテナ・1 プロセス（組み込み Jetty）で、FHIR API（`/fhir/*`）、WebSocket（`/ws/*`）、
   デモ制御 API（`/demo/*`）、静的 UI を配信する。Gateway / BFF を別プロセスで立てない。
-  通信記録・ポリシー判定は HAPI の Interceptor としてサーバー内に組み込む。
+  通信記録・ポリシー判定は HAPI の Interceptor・サーブレットフィルタ・リソースプロバイダ等としてサーバー内（同一プロセス）に組み込む
+  （実装手段は限定しない。別プロセスを立てないことが要件）。
 - **永続化**: インメモリ。再起動・初期化で初期データの状態に戻る。
 - **同時実行**: リソース単位のロックで版の確認と書き込みを不可分に行う。版の不一致は 412 を返す。
 - **Subscription**: R4 の websocket チャネル方式（`bind` / `ping` を受けて画面が最新状態を GET する）。
@@ -125,4 +126,4 @@
 - `/speckit-plan` の Constitution Check では原則 I〜VIII をゲートとし、違反がある場合は
   Complexity Tracking に理由と代替案を記載する。
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-01 | **Last Amended**: 2026-10-01
+**Version**: 1.0.1 | **Ratified**: 2026-10-01 | **Last Amended**: 2026-10-01

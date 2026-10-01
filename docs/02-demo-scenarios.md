@@ -15,12 +15,12 @@ S2 で S1 と同じ場面を使って排他制御を見せられる。
 
 ## 登場人物・システム（共通）
 
-すべて架空。
+すべて架空。患者は「デモ 〇〇」、職員は「職種 + 英字」（医師 X、技師 A など）とし、実在の人物と取り違えない名前にする（constitution 原則 II）。
 
 | 種別 | 名称（案） | FHIR リソース |
 |---|---|---|
 | 患者 | デモ 太郎（60 歳 男性）、デモ 花子 | Patient |
-| 医師 | 田中 医師（内科）、鈴木 医師（外科） | Practitioner / PractitionerRole |
+| 医師 | 医師 X（内科）、医師 Y（外科） | Practitioner / PractitionerRole |
 | 看護師 | 看護師 D（内科外来） | Practitioner / PractitionerRole |
 | 臨床検査技師 | 技師 A、技師 B | Practitioner / PractitionerRole |
 | 薬剤師 | 薬剤師 C | Practitioner / PractitionerRole |
@@ -33,10 +33,17 @@ S2 で S1 と同じ場面を使って排他制御を見せられる。
 
 ### 事前状態
 
-- Patient / Practitioner / Organization が登録済み。
-- LIS が Subscription を登録済み：`Task?owner=Organization/lab-dept,PractitionerRole/tech-a,PractitionerRole/tech-b`
-  （検査部宛て・検査部の技師が担当する Task の作成・更新を通知。[04-design-rules.md](04-design-rules.md#taskowner-の扱い) 参照）。
-- 電子カルテが Subscription を登録済み：`Task?requester=Practitioner/dr-tanaka`（自分が出した依頼の進捗を通知）。
+- Patient / Practitioner / PractitionerRole / Organization が初期データとして登録済み。
+- 各画面は**開いた時点で**自分の Subscription を登録し（既にあればそれを使う）、通知の受け口に接続する。
+  登録の通信も通信モニタに表示される（「通知の条件を登録する」ことも説明の対象にする）。
+
+  | 画面 | Subscription の criteria | 目的 |
+  |---|---|---|
+  | 電子カルテ（医師） | `Task?requester=Practitioner/dr-x` | 自分が出した依頼の進捗を知る |
+  | 電子カルテ（看護師） | `Task?owner=Organization/lab-dept,PractitionerRole/tech-a,PractitionerRole/tech-b` | 採血待ちの依頼を知る（画面で未採取のものに絞る） |
+  | 検体検査システム | `Task?owner=Organization/lab-dept,PractitionerRole/tech-a,PractitionerRole/tech-b` | 検査部宛て・検査部の技師が担当する作業を知る（[04-design-rules.md](04-design-rules.md#taskowner-の扱い) 参照） |
+
+  criteria は更新後のリソースで評価されるため、状態が変わると外れる条件（例：`status=requested`）は使わない。
 
 ### 業務の段階と FHIR の状態の対応
 
@@ -58,7 +65,7 @@ S2 で S1 と同じ場面を使って排他制御を見せられる。
 
 | # | 業務上の出来事 | 操作する画面 | 通信 | リソースの状態変化 |
 |---|---|---|---|---|
-| 1 | 田中医師が血算を依頼 | 電子カルテ（医師） | `POST /`（Transaction Bundle：ServiceRequest + Task + Specimen） | SR: `active` / Task: `requested`、未採取（owner = 検査部） |
+| 1 | 医師 X が血算を依頼 | 電子カルテ（医師） | `POST /`（Transaction Bundle：ServiceRequest + Task + Specimen） | SR: `active` / Task: `requested`、未採取（owner = 検査部） |
 | 2 | 検査部の画面に新着依頼が届く | （自動） | Subscription 通知 → LIS が `GET /Task/{id}` で中身を取得 | 変化なし |
 | 3 | 看護師 D が採血 | 電子カルテ（看護師） | `POST /`（Transaction Bundle：Specimen 更新 + Task 更新、どちらも `ifMatch`） | Specimen: 採取者・採取日時 / Task: `requested`、採取済 |
 | 4 | 技師 A が検体を受付 | LIS（技師 A） | `PATCH /Task/{id}` + `If-Match`（status・owner・businessStatus を更新） | Task: `accepted`、検体到着（owner = 技師 A） |
@@ -126,7 +133,7 @@ S1 のステップ 4（検体受付）を、技師 A と技師 B が**ほぼ同�
 
 ## S3. 放射線：CT 検査予約枠の取り合い（P2）
 
-田中医師（外来 1 診）と鈴木医師（外来 2 診）が、同じ CT 枠（明日 10:00）に**同時に**予約を入れようとする。
+医師 X（外来 1 診）と医師 Y（外来 2 診）が、同じ CT 枠（明日 10:00）に**同時に**予約を入れようとする。
 
 ### 追加リソース
 
@@ -135,7 +142,7 @@ S1 のステップ 4（検体受付）を、技師 A と技師 B が**ほぼ同�
 
 ### S3-1. NG パターン：Appointment を直接 POST → 二重予約
 
-| 時刻 | 田中医師 | 鈴木医師 | 結果 |
+| 時刻 | 医師 X | 医師 Y | 結果 |
 |---|---|---|---|
 | T1 | `POST /Appointment`（slot = Slot/A）→ `201` | | 予約 1 件 |
 | T2 | | `POST /Appointment`（slot = Slot/A）→ `201` | **予約 2 件（二重予約成立）** |

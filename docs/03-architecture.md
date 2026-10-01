@@ -15,14 +15,14 @@
 
 | 項目 | skeleton の状態 | デモでの扱い |
 |---|---|---|
-| HAPI FHIR | 7.0.2（`hapi-fhir-base` / `hapi-fhir-server` / `hapi-fhir-validation`） | 継続利用。最新安定版への更新を検討（[05-decisions.md](05-decisions.md) O-03） |
+| HAPI FHIR | 7.0.2（`hapi-fhir-base` / `hapi-fhir-server` / `hapi-fhir-validation`） | **8.12.1** に更新（`hapi-fhir-base` / `hapi-fhir-server` / `hapi-fhir-structures-r4`。`hapi-fhir-validation` は使わない）（D-20） |
 | FHIR バージョン | **R5**（`FhirContext.forR5Cached()`、`hapi-fhir-structures-r5`） | **R4 に変更**（参考資料・JP Core が R4 のため） |
 | Java | 17 | 17 以上 |
 | パッケージング | war、`mvn jetty:run`（Jetty 11） | 組み込み Jetty の実行可能 JAR に変更し、Docker イメージに格納する（[起動と配布](#起動と配布)） |
 | 永続化 | Provider ごとの `HashMap` によるインメモリ管理（版の履歴あり） | 汎用のインメモリリポジトリに整理して全リソースで共有 |
 | Provider | Patient（read/vread/create/update/search）、Organization（read のみ） | 必要なリソースすべてに拡張 |
-| Interceptor | ログ出力の例（新旧 2 種） | 通信記録・ポリシー判定に置き換え |
-| FHIR Tester | `hapi-fhir-testpage-overlay`（Spring MVC、`/*` にマッピング） | 技術者向けに残す場合はパスを `/tester/*` へ移す |
+| Interceptor | ログ出力の例（新旧 2 種） | 使わない。通信記録はサーブレットフィルタ、ポリシー判定はリソースプロバイダと Transaction 処理で行う。CapabilityStatement への websocket URL の追加にのみ Interceptor のフックを使う |
+| FHIR Tester | `hapi-fhir-testpage-overlay`（Spring MVC、`/*` にマッピング） | 削除する（D-22） |
 | ライセンス | BSD 系（Copyright (c) 2015, Furore） | 流用したソースには著作権表示を残す |
 
 ## 全体構成
@@ -40,14 +40,14 @@
 │  ┌────────────────────────────────────────────────────────────────────────┐  │
 │  │ Docker コンテナ「demo」：Java プロセス（組み込み Jetty）                   │  │
 │  │                                                                        │  │
-│  │  /fhir/*   HAPI RestfulServer（R4, plain server）                        │  │
+│  │  /fhir/*   TrafficCaptureFilter（全要求・応答を記録）→                     │  │
+│  │            HAPI RestfulServer（R4, plain server）                        │  │
 │  │    ├ ResourceProvider 群 ── InMemoryRepository（版管理・ロック）          │  │
 │  │    ├ SystemProvider（@Transaction、$process-message）                    │  │
-│  │    ├ Interceptor：TrafficCapture / IfMatchPolicy / TaskTransitionRule    │  │
+│  │    ├ ルール：IfMatchRule / TaskTransitionRule（Provider・Transaction で適用）│  │
 │  │    └ SubscriptionEngine（criteria 評価 → 通知）                           │  │
 │  │  /ws/*     WebSocket：Subscription 通知（R4 websocket 方式）・通信ログ配信 │  │
 │  │  /demo/*   デモ制御 API：初期化・初期データ投入・ポリシー切替・シナリオ     │  │
-│  │  /tester/* HAPI FHIR Tester（任意）                                      │  │
 │  │  /         静的 UI（React のビルド成果物：各システム画面・通信モニタ）      │  │
 │  └────────────────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -58,7 +58,8 @@
 - **部門システムはブラウザ画面として実装し、独自のバックエンドを持たない。**
   各画面は FHIR クライアントとしてサーバーに直接アクセスする。これにより「システム間の連携は FHIR サーバー経由のみ」の原則が構成上保証される。
 - **Gateway / BFF を別プロセスで立てない。**
-  通信の記録・ポリシー判定は HAPI の Interceptor としてサーバー内に組み込む。
+  通信の記録・ポリシー判定はサーバー内（同一プロセス）に組み込む。通信の記録は `/fhir/*` のサーブレットフィルタ、
+  If-Match・状態遷移の判定はリソースプロバイダと Transaction 処理で行う（constitution 1.0.1 技術制約、specs/001 research R-07・R-11）。
 - **永続化はインメモリ。**
   プロセス再起動 = 初期状態。デモ制御 API の「初期化」でも同じ状態に戻せる。
 
@@ -74,14 +75,14 @@ HAPI plain server は REST の入口（アノテーションによる振り分�
 | F3 | 検索（必要なパラメータのみ） | 全シナリオ | 下表「検索パラメータ」参照 |
 | F4 | If-Match による楽観的ロック | S1〜S4 | 版が一致しなければ `PreconditionFailedException`（**412**）。HAPI ドキュメントの例は 409（`ResourceVersionConflictException`）だが、FHIR 仕様に合わせ 412 を返す |
 | F5 | If-Match 必須ポリシー | S2-3 | ヘッダ無しの update / patch を `400` で拒否。デモ制御で ON/OFF |
-| F6 | PATCH（JSON Patch） | S1, S2, S4 | `@Patch` で受け、適用処理はライブラリを利用（O-04）。If-Match を同様に扱う |
+| F6 | PATCH（JSON Patch） | S1, S2, S4 | `@Patch` で受け、適用処理は `io.dogote:json-patch` を利用（D-21）。HAPI は `@Patch` の If-Match を `IdType` に設定しないため、ヘッダを自分で読む。If-Match を同様に扱う |
 | F7 | Transaction Bundle | S1, S3, S4 | `@Transaction`。`urn:uuid` 参照の解決、`entry.request.ifMatch` / `ifNoneExist` の処理、失敗時は全体を元に戻す |
 | F8 | 条件付き作成（If-None-Exist） | S3 | 単独リクエストと Transaction 内の両方 |
 | F9 | Task 状態遷移チェック | S1, S2 | [04-design-rules.md](04-design-rules.md#task-の状態遷移マトリクス) のマトリクスで判定。デモ制御で ON/OFF |
 | F10 | Subscription | S1〜S4 | 下記 [Subscription](#subscription) 参照 |
 | F11 | Slot 仮押さえのタイムアウト | S3 | スケジューラで `busy-tentative` の Slot を一定秒数後に `free` へ戻す |
 | F12 | `$process-message` | S5 | Message Bundle を受け、中のリソースを登録する |
-| F13 | 通信記録と配信 | 全シナリオ | Interceptor でリクエスト/レスポンス（メソッド・URL・ヘッダ・本文・ステータス・所要時間・送信元画面）を記録し、WebSocket で通信モニタへ配信 |
+| F13 | 通信記録と配信 | 全シナリオ | `/fhir/*` のサーブレットフィルタでリクエスト/レスポンス（メソッド・URL・ヘッダ・本文・ステータス・所要時間・送信元画面）を記録し、WebSocket で通信モニタへ配信。送信元画面は UI が全要求に付ける `X-Demo-Client` ヘッダ（FHIR の処理には影響しない独自ヘッダ）で識別する |
 | F14 | デモ制御 API | 全シナリオ | 初期化、初期データ投入、ポリシー切替、タイムアウト秒数の変更 |
 | F15 | CapabilityStatement | — | HAPI の自動生成をそのまま利用 |
 
@@ -90,7 +91,7 @@ HAPI plain server は REST の入口（アノテーションによる振り分�
 | リソース | パラメータ | 用途 |
 |---|---|---|
 | Task | `owner`, `requester`, `status`, `focus`, `patient` | 部門の受付待ち一覧、電子カルテの進捗表示、Subscription の条件 |
-| ServiceRequest | `subject`, `status`, `category` | 電子カルテの依頼一覧 |
+| ServiceRequest | `subject`, `requester`, `status`, `category` | 電子カルテの依頼一覧（S1 は `subject`・`requester`・`status` を使う。`category` は S3 以降） |
 | DiagnosticReport | `based-on`, `subject` | 結果の表示 |
 | Observation | `based-on`, `subject` | 結果の表示 |
 | MedicationRequest / MedicationDispense | `subject`, `status` | 処方・調剤の一覧 |
@@ -111,17 +112,20 @@ HAPI plain server は REST の入口（アノテーションによる振り分�
   条件に合うリソースが作成・更新されたら、サーバーが `ping {Subscription id}` を送る。画面は ping を受けて最新状態を GET する。
   - 「通知は合図だけ、中身は取りに行く」という流れが通信モニタ上で見えるので、説明に向いている。
   - 部門システムがバックエンドを持たないため、rest-hook（サーバーから部門システムの URL へ POST）は使わない。
-- criteria の評価は F3 の検索ロジックを再利用する。
+- criteria の評価は F3 の検索ロジックを再利用する。criteria は更新後のリソースで評価される。
+- 各画面は開いた時点で、画面ごとに固定 ID の Subscription を `GET` し、無ければ `PUT` で作成する（初期データには含めない）。
+  初期化でリソースが消えたら登録し直す。登録の通信も通信モニタに表示される。
 
 ## 技術スタック
 
 | 層 | 採用 / 候補 | 備考 |
 |---|---|---|
 | 言語 | Java 17 以上 | skeleton に合わせる |
-| FHIR ライブラリ | HAPI FHIR（`hapi-fhir-server`, `hapi-fhir-structures-r4`） | バージョンは O-03 |
+| FHIR ライブラリ | HAPI FHIR（`hapi-fhir-server`, `hapi-fhir-structures-r4`） | 8.12.1（D-20） |
 | サーブレットコンテナ | 組み込み Jetty | 実行可能 JAR として起動 |
 | WebSocket | Jakarta WebSocket（Jetty 付属） | Subscription 通知・通信ログ配信 |
-| JSON Patch | ライブラリを選定（O-04） | |
+| JP Core / JP Terminology | `jp-core.r4#1.2.0`、`jpfhir-terminology#2.2609.0`（D-23） | 開発・テスト時の参照データ。`scripts/fetch-jp-packages.sh` で取得し、`.cache/fhir-packages/` に展開。リポジトリ・Docker イメージには含めず、実行時にも使わない |
+| JSON Patch | `io.dogote:json-patch` 1.15（D-21） | HAPI 本体の PATCH 実装と同じライブラリ。Apache 2.0 / LGPL 3.0 のデュアルライセンス |
 | 永続化 | インメモリ | DB 不要 |
 | 初期データ | `src/main/resources` に FHIR JSON を配置し、起動時・初期化時に読み込む | 架空データのみ |
 | フロントエンド | TypeScript + React（Vite でビルド） | ビルド成果物を JAR に同梱し Jetty から配信。FHIR の型は `@types/fhir`（R4）。Node.js はビルド時のみ必要 |

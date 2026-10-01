@@ -26,7 +26,7 @@ R4 の Task.status のうち、デモで使う値に絞る（`received` / `ready
 | **accepted** | | — | | 部門 | 部門 | | | 依頼元 / 部門 |
 | **in-progress** | | | | — | 部門 | 部門 | 部門 | 依頼元 / 部門 |
 | **on-hold** | | | | 部門 | — | | 部門 | 依頼元 / 部門 |
-| **completed** / **rejected** / **failed** / **cancelled** | 終了状態。遷移不可 |
+| **completed** / **rejected** / **failed** / **cancelled** | 終了状態。遷移不可。status を変えない更新（businessStatus・owner などのみ）も含め、**一切の更新を 422 で拒否する** |
 
 - 「部門」= Task.owner 側のシステム、「依頼元」= Task.requester 側のシステム。
   操作者による制限は画面側で行い、サーバー側では遷移の可否だけを判定する（認証が無いため）。
@@ -46,7 +46,7 @@ Task.status だけでは表せない段階を Task.businessStatus（`text` に�
 
 | 部門 | 値（案） |
 |---|---|
-| 検体検査 | 未採取 / 採取済 / 検体到着 / 測定中 / 再検中 / 結果確認中 |
+| 検体検査 | 未採取 / 採取済 / 検体到着 / 測定中 / 再検中 / 一部報告済 / 報告済 |
 | 放射線 | 予約済み / 受付済み / 撮影中 / 読影中 |
 | 薬剤 | 調剤中 / 監査中 / 払出待ち / 疑義照会中 |
 
@@ -98,14 +98,15 @@ Task.status だけでは表せない段階を Task.businessStatus（`text` に�
 
 | 項目 | ルール |
 |---|---|
-| プロファイル | JP Core にプロファイルがあるリソースは `meta.profile` に設定する。サーバー側での検証は行わない |
-| JP Core に無いもの | Task、Slot、Appointment など（2026年4月時点で Task の詳細定義は限定的）は FHIR R4 の基本定義に従う |
-| 検体検査の項目 | JLAC10（日本語の表示名を `display` に設定）。LOINC の併記は任意 |
+| 採用する版 | **JP Core 1.2.0**（`jp-core.r4#1.2.0`）、**JP Terminology 2.2609.0**（`jpfhir-terminology#2.2609.0`）。`scripts/fetch-jp-packages.sh` で取得し、リポジトリには含めない |
+| プロファイル | JP Core にプロファイルがあるリソースは `meta.profile` に設定する。サーバー側での検証は行わない。コード・プロファイルの存在はテストで確認する |
+| JP Core に無いもの | Task、Subscription、Slot、Appointment など（JP Core 1.2.0 にプロファイルが無い）は FHIR R4 の基本定義に従う |
+| 検体検査の項目 | JLAC10（`http://medis.or.jp/CodeSystem/master-JLAC10-17digits`、日本語の表示名を `display` に設定）。CLINS コア検査項目に含まれるコードを優先する。LOINC の併記は任意 |
 | 薬剤 | HOT コード |
 | 用法 | JAMI 用法コード |
 | 単位 | UCUM |
 | 画像検査 | モダリティは DICOM のコード（例：CT） |
-| system URI | 採用する JP Core のバージョンが定める URI を使う（実装時に一覧化） |
+| system URI | 上記の版が定める URI を使う。S1 で使うものは specs/001-lab-order-workflow/data-model.md に一覧化 |
 
 ## 表示ラベル
 
