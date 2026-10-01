@@ -1,0 +1,28 @@
+{
+  "resourceType": "PractitionerRole",
+  "id": "tech-a",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_PractitionerRole"
+    ]
+  },
+  "active": true,
+  "practitioner": {
+    "reference": "Practitioner/tech-a"
+  },
+  "organization": {
+    "reference": "Organization/lab-dept"
+  },
+  "code": [
+    {
+      "coding": [
+        {
+          "system": "https://demo.example.jp/fhir/CodeSystem/staff-role",
+          "code": "lab-technologist",
+          "display": "臨床検査技師"
+        }
+      ],
+      "text": "臨床検査技師"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "resourceType": "Practitioner",
+  "id": "tech-b",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Practitioner"
+    ]
+  },
+  "identifier": [
+    {
+      "system": "https://demo.example.jp/fhir/sid/staff-number",
+      "value": "tech-b"
+    }
+  ],
+  "name": [
+    {
+      "use": "official",
+      "text": "技師 B"
+    }
+  ]
+}

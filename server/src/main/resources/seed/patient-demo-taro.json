@@ -1,0 +1,27 @@
+{
+  "resourceType": "Patient",
+  "id": "demo-taro",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Patient"
+    ]
+  },
+  "identifier": [
+    {
+      "system": "https://demo.example.jp/fhir/sid/patient-number",
+      "value": "00000001"
+    }
+  ],
+  "name": [
+    {
+      "use": "official",
+      "text": "デモ 太郎",
+      "family": "デモ",
+      "given": [
+        "太郎"
+      ]
+    }
+  ],
+  "gender": "male",
+  "birthDate": "1966-04-01"
+}

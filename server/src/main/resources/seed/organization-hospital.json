@@ -1,0 +1,11 @@
+{
+  "resourceType": "Organization",
+  "id": "hospital",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Organization"
+    ]
+  },
+  "active": true,
+  "name": "デモ総合病院"
+}

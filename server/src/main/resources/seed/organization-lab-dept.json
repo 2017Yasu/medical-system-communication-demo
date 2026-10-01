@@ -1,0 +1,14 @@
+{
+  "resourceType": "Organization",
+  "id": "lab-dept",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Organization"
+    ]
+  },
+  "active": true,
+  "name": "検査部",
+  "partOf": {
+    "reference": "Organization/hospital"
+  }
+}

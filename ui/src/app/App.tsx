@@ -1,3 +1,10 @@
+import { BrowserRouter } from "react-router";
+import { AppRoutes } from "./routes";
+
 export function App() {
-  return <h1>医療システム連携デモ</h1>;
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  );
 }

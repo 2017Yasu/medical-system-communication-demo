@@ -1,0 +1,206 @@
+package jp.example.demo.integration;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import java.net.http.HttpResponse;
+import java.util.Map;
+import jp.example.demo.Fhir;
+import org.hl7.fhir.r4.model.Bundle;
+import org.hl7.fhir.r4.model.Bundle.HTTPVerb;
+import org.hl7.fhir.r4.model.CapabilityStatement;
+import org.hl7.fhir.r4.model.Reference;
+import org.hl7.fhir.r4.model.ServiceRequest;
+import org.hl7.fhir.r4.model.Specimen;
+import org.hl7.fhir.r4.model.Task;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+
+/** contracts/fhir-api.md と quickstart.md §3 の確認。 */
+class FhirApiContractIT {
+    @RegisterExtension
+    static DemoServerExtension demo = new DemoServerExtension();
+
+    static Bundle orderBundle() {
+        Bundle b = new Bundle().setType(Bundle.BundleType.TRANSACTION);
+        ServiceRequest sr = new ServiceRequest();
+        sr.setStatus(ServiceRequest.ServiceRequestStatus.ACTIVE);
+        sr.setIntent(ServiceRequest.ServiceRequestIntent.ORDER);
+        sr.setSubject(new Reference("Patient/demo-taro"));
+        sr.setRequester(new Reference("Practitioner/dr-x"));
+        Task t = new Task();
+        t.setStatus(Task.TaskStatus.REQUESTED);
+        t.setIntent(Task.TaskIntent.ORDER);
+        t.setFocus(new Reference("urn:uuid:sr-1"));
+        t.setFor(new Reference("Patient/demo-taro"));
+        t.setRequester(new Reference("Practitioner/dr-x"));
+        t.setOwner(new Reference("Organization/lab-dept"));
+        Specimen sp = new Specimen();
+        sp.setSubject(new Reference("Patient/demo-taro"));
+        sr.addSpecimen(new Reference("urn:uuid:sp-1"));
+        entry(b, "urn:uuid:sr-1", sr);
+        entry(b, "urn:uuid:t-1", t);
+        entry(b, "urn:uuid:sp-1", sp);
+        return b;
+    }
+
+    static void entry(Bundle b, String fullUrl, org.hl7.fhir.r4.model.Resource r) {
+        Bundle.BundleEntryComponent e = b.addEntry().setFullUrl(fullUrl).setResource(r);
+        e.getRequest().setMethod(HTTPVerb.POST).setUrl(r.fhirType());
+    }
+
+    static final Map<String, String> PATCH = Map.of("Content-Type", "application/json-patch+json", "X-Demo-Client", "lis-tech-a");
+
+    static String patch(String status) {
+        return "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"" + status + "\"}]";
+    }
+
+    @Test
+    void resetRestoresTheSeedAndPatientsCanBeSearched() throws Exception {
+        JsonNode r = demo.reset();
+        assertThat(r.get("seedResources").asInt()).isEqualTo(12);
+
+        HttpResponse<String> res = demo.fhirRaw("GET", "/Patient", Map.of(), null);
+        assertThat(res.statusCode()).isEqualTo(200);
+        Bundle bundle = Fhir.json().parseResource(Bundle.class, res.body());
+        assertThat(bundle.getEntry()).hasSize(2);
+        assertThat(bundle.getTotal()).isEqualTo(2);
+
+        HttpResponse<String> one = demo.fhirRaw("GET", "/Patient/demo-taro", Map.of(), null);
+        assertThat(one.statusCode()).isEqualTo(200);
+        assertThat(one.headers().firstValue("ETag")).contains("W/\"1\"");
+        assertThat(demo.fhirRaw("GET", "/Patient/nobody", Map.of(), null).statusCode()).isEqualTo(404);
+        assertThat(demo.fhirRaw("GET", "/Patient?unknown=1", Map.of(), null).statusCode()).isEqualTo(400);
+    }
+
+    @Test
+    void transactionCreatesThreeResourcesWithRewrittenReferences() throws Exception {
+        Bundle response = demo.fhir("ehr-doctor").transaction().withBundle(orderBundle()).execute();
+        assertThat(response.getType()).isEqualTo(Bundle.BundleType.TRANSACTIONRESPONSE);
+        assertThat(response.getEntry()).hasSize(3);
+        assertThat(response.getEntry()).allSatisfy(e -> assertThat(e.getResponse().getStatus()).startsWith("201"));
+        Task task = demo.fhir("ehr-doctor").read().resource(Task.class).withId("1").execute();
+        assertThat(task.getFocus().getReference()).isEqualTo("ServiceRequest/1");
+        assertThat(task.getStatus()).isEqualTo(Task.TaskStatus.REQUESTED);
+    }
+
+    @Test
+    void patchRulesAndHeaders() throws Exception {
+        demo.fhir("ehr-doctor").transaction().withBundle(orderBundle()).execute();
+
+        // If-Match 無し → 400
+        HttpResponse<String> noHeader = demo.fhirRaw("PATCH", "/Task/1", PATCH, patch("accepted"));
+        assertThat(noHeader.statusCode()).isEqualTo(400);
+        assertThat(noHeader.body()).contains("If-Match");
+
+        // 正しい版 → 200、ETag が進む
+        Map<String, String> withMatch = new java.util.LinkedHashMap<>(PATCH);
+        withMatch.put("If-Match", "W/\"1\"");
+        HttpResponse<String> ok = demo.fhirRaw("PATCH", "/Task/1", withMatch, patch("accepted"));
+        assertThat(ok.statusCode()).isEqualTo(200);
+        assertThat(ok.headers().firstValue("ETag")).contains("W/\"2\"");
+        assertThat(ok.headers().firstValue("Location").orElse("")).endsWith("/Task/1/_history/2");
+        assertThat(ok.body()).contains("\"accepted\"");
+
+        // 古い版 → 412（Task は変わらない）
+        HttpResponse<String> stale = demo.fhirRaw("PATCH", "/Task/1", withMatch, patch("in-progress"));
+        assertThat(stale.statusCode()).isEqualTo(412);
+        assertThat(stale.body()).contains("他の利用者が先に更新しました");
+        Task current = demo.fhir("x").read().resource(Task.class).withId("1").execute();
+        assertThat(current.getStatus()).isEqualTo(Task.TaskStatus.ACCEPTED);
+
+        // 許可されない遷移（accepted → requested）→ 422
+        Map<String, String> v2 = new java.util.LinkedHashMap<>(PATCH);
+        v2.put("If-Match", "W/\"2\"");
+        HttpResponse<String> bad = demo.fhirRaw("PATCH", "/Task/1", v2, patch("requested"));
+        assertThat(bad.statusCode()).isEqualTo(422);
+
+        // 履歴
+        HttpResponse<String> history = demo.fhirRaw("GET", "/Task/1/_history", Map.of(), null);
+        Bundle h = Fhir.json().parseResource(Bundle.class, history.body());
+        assertThat(h.getEntry()).hasSize(2);
+        assertThat(((Task) h.getEntry().get(0).getResource()).getStatus()).isEqualTo(Task.TaskStatus.ACCEPTED);
+        assertThat(demo.fhirRaw("GET", "/Task/1/_history/1", Map.of(), null).statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void putRequiresIfMatchAndReturnsEtag() throws Exception {
+        demo.fhir("ehr-doctor").transaction().withBundle(orderBundle()).execute();
+        Task t = demo.fhir("x").read().resource(Task.class).withId("1").execute();
+        t.setStatus(Task.TaskStatus.ACCEPTED);
+        t.getMeta().setVersionId(null);
+        String body = Fhir.json().encodeResourceToString(t);
+
+        assertThat(demo.fhirRaw("PUT", "/Task/1", Map.of(), body).statusCode()).isEqualTo(400);
+        HttpResponse<String> ok = demo.fhirRaw("PUT", "/Task/1", Map.of("If-Match", "W/\"1\""), body);
+        assertThat(ok.statusCode()).isEqualTo(200);
+        assertThat(ok.headers().firstValue("ETag")).contains("W/\"2\"");
+        assertThat(demo.fhirRaw("PUT", "/Task/1", Map.of("If-Match", "W/\"1\""), body).statusCode()).isEqualTo(412);
+    }
+
+    @Test
+    void createIsAssignedSequentialIdsAndReturns201() throws Exception {
+        Task t = new Task();
+        t.setStatus(Task.TaskStatus.REQUESTED);
+        t.setIntent(Task.TaskIntent.ORDER);
+        HttpResponse<String> res = demo.fhirRaw("POST", "/Task", Map.of(), Fhir.json().encodeResourceToString(t));
+        assertThat(res.statusCode()).isEqualTo(201);
+        assertThat(res.headers().firstValue("Location").orElse("")).contains("/Task/1/_history/1");
+        assertThat(res.headers().firstValue("ETag")).contains("W/\"1\"");
+    }
+
+    @Test
+    void readOnlyTypesCannotBeWritten() throws Exception {
+        HttpResponse<String> res = demo.fhirRaw("POST", "/Patient", Map.of(), "{\"resourceType\":\"Patient\"}");
+        assertThat(res.statusCode()).isIn(400, 404, 405, 422);
+    }
+
+    @Test
+    void trafficLogRecordsEveryRequestInOrder() throws Exception {
+        demo.fhirRaw("GET", "/Patient", Map.of("X-Demo-Client", "ehr-doctor"), null);
+        demo.fhirRaw("GET", "/Patient/nobody", Map.of("X-Demo-Client", "ehr-doctor"), null);
+        demo.fhirRaw("GET", "/Task?status=requested", Map.of(), null);
+
+        JsonNode traffic = DemoServerExtension.JSON.readTree(demo.raw("GET", "/demo/traffic", Map.of(), null).body());
+        JsonNode records = traffic.get("records");
+        // 先頭は初期化のイベント
+        assertThat(records.get(0).get("kind").asText()).isEqualTo("demo");
+        assertThat(records.get(1).get("request").get("url").asText()).isEqualTo("/fhir/Patient");
+        assertThat(records.get(1).get("client").asText()).isEqualTo("ehr-doctor");
+        assertThat(records.get(1).get("response").get("status").asInt()).isEqualTo(200);
+        assertThat(records.get(2).get("response").get("status").asInt()).isEqualTo(404);
+        assertThat(records.get(3).get("client").asText()).isEqualTo("unknown");
+        assertThat(records.get(3).get("request").get("url").asText()).isEqualTo("/fhir/Task?status=requested");
+        long prev = 0;
+        for (JsonNode r : records) {
+            assertThat(r.get("seq").asLong()).isGreaterThan(prev);
+            prev = r.get("seq").asLong();
+        }
+        JsonNode after = DemoServerExtension.JSON.readTree(
+                demo.raw("GET", "/demo/traffic?after=" + records.get(2).get("seq").asLong(), Map.of(), null).body());
+        assertThat(after.get("records")).hasSize(1);
+    }
+
+    @Test
+    void capabilityStatementAdvertisesTheWebsocketUrl() throws Exception {
+        HttpResponse<String> res = demo.fhirRaw("GET", "/metadata", Map.of(), null);
+        assertThat(res.statusCode()).isEqualTo(200);
+        CapabilityStatement cs = Fhir.json().parseResource(CapabilityStatement.class, res.body());
+        assertThat(cs.getFhirVersion().toCode()).startsWith("4.0");
+        var ext = cs.getRestFirstRep().getExtensionByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-websocket");
+        assertThat(ext).isNotNull();
+        assertThat(ext.getValue().primitiveValue()).startsWith("ws://localhost:").endsWith("/ws/subscription");
+    }
+
+    @Test
+    void policyCanBeSwitchedAndReset() throws Exception {
+        demo.fhir("ehr-doctor").transaction().withBundle(orderBundle()).execute();
+        assertThat(demo.raw("PUT", "/demo/policy", Map.of("Content-Type", "application/json"),
+                "{\"ifMatchRequired\":false}").statusCode()).isEqualTo(200);
+        // 任意になると If-Match 無しの PATCH が通る（後勝ち）
+        assertThat(demo.fhirRaw("PATCH", "/Task/1", PATCH, patch("accepted")).statusCode()).isEqualTo(200);
+        demo.reset();
+        JsonNode policy = DemoServerExtension.JSON.readTree(demo.raw("GET", "/demo/policy", Map.of(), null).body());
+        assertThat(policy.get("ifMatchRequired").asBoolean()).isTrue();
+    }
+}

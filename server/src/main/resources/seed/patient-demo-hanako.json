@@ -1,0 +1,27 @@
+{
+  "resourceType": "Patient",
+  "id": "demo-hanako",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Patient"
+    ]
+  },
+  "identifier": [
+    {
+      "system": "https://demo.example.jp/fhir/sid/patient-number",
+      "value": "00000002"
+    }
+  ],
+  "name": [
+    {
+      "use": "official",
+      "text": "デモ 花子",
+      "family": "デモ",
+      "given": [
+        "花子"
+      ]
+    }
+  ],
+  "gender": "female",
+  "birthDate": "1985-07-15"
+}
