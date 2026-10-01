@@ -42,11 +42,11 @@ docker compose up -d
 # サーバーの単体・結合テスト（S1 の全シナリオを含む）
 cd server && mvn verify
 
-# シナリオの繰り返し実行（SC-004：20 回連続）
-cd server && mvn verify -Dit.test='S1ScenarioIT' -Ds1.repeat=20
+# シナリオの繰り返し実行（SC-004：20 回連続。通常の流れ S1ScenarioIT と、バリエーション S1VariationsIT の両方）
+cd server && mvn verify -Dit.test='S1ScenarioIT,S1VariationsIT' -Ds1.repeat=20
 
 # JP パッケージとの整合性テスト（0. の取得後。未取得ならスキップされる）
-cd server && mvn verify -Dtest='JpPackageConsistencyTest'
+cd server && mvn test -Dtest='JpPackageConsistencyTest'
 
 # UI の単体テスト
 cd ui && npm ci && npm test
@@ -56,7 +56,7 @@ cd ui && npx playwright test
 ```
 
 **期待結果**: すべて成功。JpPackageConsistencyTest は初期データと FHIR マスタ（`ui/src/master/fhir-master.json`）のプロファイル・コードが
-JP Core 1.2.0 / JP Terminology 2.2609.0 に存在することを確認する（パッケージが無い場合はスキップと表示される）。S1ScenarioIT は `s1-main`・`s1-cancel`・`s1-reject`・`s1-rerun`・`s1-partial` の各ステップ後に、
+JP Core 1.2.0 / JP Terminology 2.2609.0 に存在することを確認する（パッケージが無い場合はスキップと表示される）。S1ScenarioIT（通常の流れ）と S1VariationsIT（取消・受付不可・再検・一部先行報告）は、各ステップ後に、
 ServiceRequest・Task・Specimen・DiagnosticReport の状態が [data-model.md §3.5](data-model.md#35-業務の段階との対応specmddocs02) のとおりであることを確認する。
 
 ## 3. API の手動確認（任意）

@@ -222,12 +222,12 @@ SC-006（通信の取りこぼし 0 件）が自動テストを要求してい�
 
 **Purpose**: 複数のストーリーにまたがる確認・文書化
 
-- [ ] T084 [P] ルートに `README.md` を作成する：デモの目的、`docker compose up` での起動、`scripts/fetch-jp-packages.sh` の位置付け（開発・テスト時のみ、パッケージはリポジトリに含めない）、quickstart.md・docs/ への案内
-- [ ] T085 [P] `docs/05-decisions.md` の技術検証項目を更新する：V-01・V-03〜V-05・V-08 を確認済みとし、確認方法（該当テスト・quickstart.md の節）を記録する。V-06・V-07 は T087・T008 の結果で更新する
-- [ ] T086 `scripts/fetch-jp-packages.sh` を実行してから `cd server && mvn verify` と `mvn verify -Dit.test='S1ScenarioIT,S1VariationsIT' -Ds1.repeat=20`、`cd ui && npm test && npx playwright test` を実行し、すべて成功することを確認する（SC-004、R-21）
-- [ ] T087 quickstart.md の §0〜§7 を順に実施し、特に §7（ネットワーク切断状態での起動と全ステップの実行、ブラウザの開発者ツールで外部への通信 0 件）を確認する（SC-005、V-06）
-- [ ] T088 SC-001（講演モードで解説込み 10 分以内、操作のみ 3 分以内）・SC-002（他の画面への反映 2 秒以内）・SC-003（初期化 10 秒以内）を quickstart.md §4 の手順で計測し、結果を `specs/001-lab-order-workflow/quickstart.md` の末尾に記録する
-- [ ] T089 `git status` で `.cache/`・ビルド成果物がリポジトリに含まれていないこと、`docker compose build` のビルドコンテキストに `.cache/` が含まれないことを確認する（D-23）
+- [X] T084 [P] ルートに `README.md` を作成する：デモの目的、`docker compose up` での起動、`scripts/fetch-jp-packages.sh` の位置付け（開発・テスト時のみ、パッケージはリポジトリに含めない）、quickstart.md・docs/ への案内
+- [X] T085 [P] `docs/05-decisions.md` の技術検証項目を更新する：V-01・V-03〜V-05・V-08 を確認済みとし、確認方法（該当テスト・quickstart.md の節）を記録する。V-06・V-07 は T087・T008 の結果で更新する
+- [X] T086 `scripts/fetch-jp-packages.sh` を実行してから `cd server && mvn verify` と `mvn verify -Dit.test='S1ScenarioIT,S1VariationsIT' -Ds1.repeat=20`、`cd ui && npm test && npx playwright test` を実行し、すべて成功することを確認する（SC-004、R-21）
+- [X] T087 quickstart.md の §0〜§7 を順に実施し、特に §7（ネットワーク切断状態での起動と全ステップの実行、ブラウザの開発者ツールで外部への通信 0 件）を確認する（SC-005、V-06）
+- [X] T088 SC-001（講演モードで解説込み 10 分以内、操作のみ 3 分以内）・SC-002（他の画面への反映 2 秒以内）・SC-003（初期化 10 秒以内）を quickstart.md §4 の手順で計測し、結果を `specs/001-lab-order-workflow/validation-results.md` に記録する
+- [X] T089 `git status` で `.cache/`・ビルド成果物がリポジトリに含まれていないこと、`docker compose build` のビルドコンテキストに `.cache/` が含まれないことを確認する（D-23）
 
 ---
 

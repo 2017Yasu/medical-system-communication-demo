@@ -41,15 +41,15 @@ ID は欠番を詰めずに管理する（解決済みの O-01・O-02・O-03・O
 
 ## 技術検証項目
 
-実装の初期段階（スパイク）で確認する。
+S1 の実装（specs/001-lab-order-workflow）で確認した。結果の詳細は [validation-results.md](../specs/001-lab-order-workflow/validation-results.md)。
 
-| ID | 確認内容 |
-|---|---|
-| V-01 | skeleton を R4 に切り替えてビルド・起動できること（`hapi-fhir-structures-r4`、`FhirContext.forR4Cached()`） |
-| V-02 | ~~`@Patch` メソッドでも If-Match の版が `IdType` に渡されること~~ → **確認済み（2026-10-01）**：HAPI 8.12.1 では渡されない。`RequestDetails` からヘッダを読む（specs/001 research R-07） |
-| V-03 | `@Transaction` で受けた Bundle の `entry.request.ifMatch` / `ifNoneExist` を取得して処理できること |
-| V-04 | 組み込み Jetty 上で HAPI RestfulServer・Jakarta WebSocket エンドポイント・静的 UI の配信を同居させられること |
-| V-05 | 静的 UI（`/`、SPA のフォールバック）・FHIR（`/fhir/*`）・WebSocket（`/ws/*`）・デモ制御（`/demo/*`）のパス割り当てが衝突しないこと |
-| V-06 | ネットワークを切断した状態で、ビルド済みの Docker イメージから `docker compose up` で起動し、全シナリオを実行できること |
-| V-07 | 2 つのブラウザウィンドウから同時に PATCH したとき、必ず片方が 412 になること（S2 の再現性） |
-| V-08 | React の開発サーバー（Vite）からコンテナ上の FHIR サーバー・WebSocket へプロキシして開発できること |
+| ID | 確認内容 | 結果（2026-10-01） |
+|---|---|---|
+| V-01 | skeleton を R4 に切り替えてビルド・起動できること | 確認済み（HAPI FHIR 8.12.1、`FhirContext.forR4Cached()`） |
+| V-02 | `@Patch` メソッドでも If-Match の版が `IdType` に渡されること | **渡されない**。`RequestDetails` からヘッダを読む（specs/001 research R-07） |
+| V-03 | `@Transaction` で受けた Bundle の `entry.request.ifMatch` / `ifNoneExist` を処理できること | 確認済み（`TransactionProcessorTest`） |
+| V-04 | 組み込み Jetty 上で HAPI RestfulServer・Jakarta WebSocket・静的 UI の配信を同居させられること | 確認済み |
+| V-05 | 静的 UI（SPA のフォールバック）・FHIR・WebSocket・デモ制御のパスが衝突しないこと | 確認済み |
+| V-06 | ネットワークを切断した状態で、ビルド済みの Docker イメージから起動し、全シナリオを実行できること | 確認済み（`docker run --network none` で動作、E2E で外部通信 0 件） |
+| V-07 | 2 つのブラウザウィンドウから同時に PATCH したとき、必ず片方が 412 になること（S2 の再現性） | サーバー側は確認済み（同じ版への同時更新は必ず片方だけ成功、100 回繰り返し）。画面での再現は S2 で確認する |
+| V-08 | React の開発サーバー（Vite）からコンテナ上の FHIR サーバー・WebSocket へプロキシして開発できること | 確認済み |
