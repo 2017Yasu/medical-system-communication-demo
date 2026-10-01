@@ -1,0 +1,77 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## プロジェクトの要点
+
+医療機関の FHIR サーバーと部門システム（電子カルテ・検体検査）の連携を、医療従事者にも分かりやすく見せるデモ。
+ドキュメント・UI 文言・コミットメッセージ以外のコード上の識別子は英語、ドキュメントと UI 文言は日本語。
+現在の実装範囲は S1（検体検査）。S2〜S5（排他制御の事故再現 UI、放射線の予約枠、処方調剤、Message Bundle）は `docs/` に設計のみ。
+
+`.specify/memory/constitution.md`（v1.0.1）が最優先。特に次を守る：
+- 画面同士は FHIR サーバー経由でのみ通信する（直接通信・独自バックエンド禁止）。デモの初期化・ポリシー変更（`/demo/*`）だけが例外。
+- 実行時に外部ネットワーク・CDN に依存しない（オフライン、`docker compose up` の 1 コマンド）。データはすべて架空。
+- 設計の変更は先に `docs/`（決定は `docs/05-decisions.md`）と `specs/` を更新してから実装する（原則 VIII）。
+
+## コマンド
+
+```bash
+# サーバー（Java 21、Maven）— server/ で実行
+mvn test                                         # 単体テスト（surefire。*IT は除外）
+mvn verify                                       # 単体 + 統合テスト（failsafe の *IT）
+mvn verify -Dit.test=S1ScenarioIT                # 統合テストを 1 クラスだけ
+mvn test -Dtest=IfMatchRuleTest                  # 単体テストを 1 クラスだけ
+mvn verify -Ds1.repeat=20                        # S1 系シナリオを 20 回繰り返す（SC-004）
+mvn -DskipTests package                          # server/target/demo-server.jar（shade の実行可能 JAR）
+
+# UI — ui/ で実行
+npm ci && npm test                               # Vitest（tests/unit）
+npx vitest run tests/unit/sequence.test.ts       # 1 ファイルだけ
+npm run typecheck                                # tsc --noEmit（lint は無い）
+npm run dev                                      # Vite（/fhir /ws /demo を localhost:8080 へプロキシ。DEMO_BACKEND で変更）
+npm run build
+
+# E2E（Playwright。起動済みの http://localhost:8080 に対して実行。DEMO_URL で変更）
+npx playwright install chromium && npx playwright test
+npx playwright test tests/e2e/presentation.spec.ts -g "次へ"
+
+# 起動
+docker compose build && docker compose up        # http://localhost:8080/
+
+# JP Core / JP Terminology（リポジトリに含めない。.cache/fhir-packages/ に取得）
+scripts/fetch-jp-packages.sh [--check|--force]
+```
+
+- 統合テストは組み込み Jetty をランダムポートで起動する（`DemoServerExtension`）。E2E は別途サーバーが必要。
+  ローカルで E2E を回すには、UI をビルドして `server/src/main/resources/static/` にコピー（gitignore 済み）→ `mvn -DskipTests package` → `java -jar server/target/demo-server.jar`。
+  Docker のイメージも同じ手順（`Dockerfile` のマルチステージ）。UI を変えたら JAR を作り直さないと E2E に反映されない。
+- `JpPackageConsistencyTest` は `.cache/fhir-packages/` が無いとスキップされる。環境変数 `JP_FHIR_PACKAGE_DIR` で場所を変えられる。
+- Linux で Playwright の Chromium が `libasound.so.2` 不足で起動しない場合は `npx playwright install-deps`（要 root）か、`LD_LIBRARY_PATH` に展開したライブラリを追加する。
+
+## アーキテクチャ
+
+1 コンテナ・1 プロセス（組み込み Jetty）が、`/fhir/*`（HAPI FHIR 8.12.1 の plain server、R4）、`/ws/*`、`/demo/*`、静的 UI を配信する。
+永続化はインメモリで、再起動・初期化で初期データ（`server/src/main/resources/seed/`、架空）に戻る。`fhirstarters` の skeleton を元にしており、HAPI JPA Server は使わない。
+
+### サーバー（`server/src/main/java/jp/example/demo/`）
+- `store/InMemoryRepository`：リソースの版を不変スナップショットで保持。**書き込みは 1 つのロックで直列化**し、コミットと初期化（`replaceAll`）は参照の差し替え 1 回。同じ版への同時更新は必ず片方だけ成功する。
+- `fhir/ResourceWriter`：create / update / patch の規則（If-Match → 400/412、Task 状態遷移 → 422、Subscription の検証）を一箇所に集約。**単一操作の Provider と Transaction の各エントリが同じ規則を通る**。規則は `fhir/rules/`、ポリシー（既定は安全側）は `demo/DemoPolicy`。
+- `fhir/provider/*`：リソース種別ごとの HAPI Provider（`AbstractRepositoryProvider` 継承）。HAPI は `@Patch` の If-Match を ID に設定しないので、`TaskProvider` は `RequestDetails` から自分で読む。PATCH 応答の ETag/Location も自分で付ける。
+- `fhir/system/TransactionProcessor`：POST → PUT → GET の順に作業用セッションへ適用し、全成功でコミット、失敗は全体を破棄（`urn:uuid` の書き換え、`ifMatch`、`ifNoneExist`）。DELETE/PATCH エントリは 400。
+- `traffic/TrafficCaptureFilter`：`/fhir/*` の全要求・応答を記録（gzip は展開）。**seq は要求の受信時に採番**するため、処理中に出た通知（ping）の記録のほうが先に配信されることがある（常に seq 順に並べて扱う）。
+- `subscription/SubscriptionEngine`：R4 websocket 方式（`bind {id}` / `ping {id}`）。コミットごとに、**更新後のリソース**を criteria で評価（状態が変わると外れる条件は使わない）。
+- `demo/DemoControl`：`/demo/reset`（全データ・通信記録・bind・ポリシーを初期化）、`/demo/policy`、`/demo/traffic`。
+
+### UI（`ui/src/`）
+- `fhir/client.ts`：全要求に `X-Demo-Client`（通信モニタが送信元を表示するための独自ヘッダ）を付け、ETag を保持して If-Match を付ける。412 等は自動リトライせず、業務用語のエラー（`fhir/errors.ts`、`fhir/labels.ts`）にする。
+- `fhir/builders/labOrder.ts` と `fhir/labActions.ts`：検体検査の各操作が送る FHIR リソース・要求の組み立てと送信。画面操作とシナリオの自動実行が共有する。検査項目・コードは `master/fhir-master.json`（JLAC10 などは JP Terminology で確認済み。サーバーのテストも同じファイルを読む）。
+- `realtime/`：`useLiveData`（Subscription を登録 → bind → ping で取り直す共通フック）、`trafficStore`（通信記録を seq 順に保持）。同じ ID の Subscription を複数画面が同時に作る競合を `ensureSubscription` が吸収する。
+- `scenario/`：シナリオ定義（`s1Main.ts`、`variations.ts`）と `ScenarioRunner`。**ステップの完了は「データの状態」と「通信記録の条件（前のステップの基準 seq より後で最初に一致した通信）」の両方で判定**する。データが変わらないステップ（通知による自動反映など）を区別するため。講演モードの「戻る」は初期化して再実行する。
+- `guide/`：自習モード。シナリオの `target.control` と画面の `data-guide` 属性が対応している（`tests/unit/scenarios.test.ts` が食い違いを検出する）。
+- `app/StageView`：電子カルテ・検体検査・通信モニタを 1 画面に並べる。医師/看護師の両画面を常に配置し表示だけ切り替える（通知の bind を外さないため）。
+
+## ドキュメントと仕様
+
+- `docs/`：設計（概要、シナリオ S1〜S5、アーキテクチャ、設計ルール＝状態遷移・表示ラベル・コード体系、決定事項と未決事項）。
+- `specs/001-lab-order-workflow/`：S1 の Spec Kit 成果物（spec / plan / research / data-model / contracts / quickstart / tasks / validation-results）。API・WebSocket・画面の契約は `contracts/`。
+- 新しい機能は `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement` の流れ（`.specify/`、`.claude/skills/`）。
