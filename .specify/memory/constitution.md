@@ -1,50 +1,128 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# Medical System Communication Demo Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. FHIR サーバー経由の連携のみ
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+- 電子カルテ・部門システム（検体検査・放射線・薬剤）の間の情報のやり取りは、MUST FHIR サーバーの
+  REST API（および FHIR サーバーが送る Subscription 通知）だけを経由する。
+- 画面同士の直接通信、共有ストレージ、ブラウザ間メッセージなど、FHIR を迂回する経路を
+  MUST NOT 作らない。
+- 部門システムは独自のバックエンドを持たないブラウザ画面として実装し、FHIR クライアントとして振る舞う。
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+**理由**: デモで見える通信がシステム間連携のすべてである状態を保ち、説明と実態を一致させるため。
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### II. 架空データのみ
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+- 患者・医療従事者・医療機関のデータは MUST 架空のものに限る。実在の個人・施設の情報、
+  実データから作った匿名化データも MUST NOT 含めない。
+- 氏名などは明らかに架空と分かるもの（例：「デモ 太郎」）にする。
+- 初期データはリポジトリ内の FHIR JSON として管理し、レビュー可能にする。
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+**理由**: 講演・展示で不特定多数に見せるデモであり、個人情報の取扱いリスクを構造的に排除するため。
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### III. すべての通信を見える化する
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+- FHIR サーバーが受けたリクエスト、返したレスポンス、送った通知は、MUST すべて記録し、
+  通信モニタに表示できる（メソッド、URL、主要ヘッダ、本文、ステータス、送信元画面）。
+- 業務上の状態変化（例：ServiceRequest の完了）は MUST 通信として表れる形で行う。
+  利用者から見えないサーバー内部の自動処理で業務データを書き換えてはならない。
+  例外は、ルールとして明示し通信モニタに表示する仕組み（例：Slot 仮押さえのタイムアウト）に限る。
+- リソースの版履歴（`_history`）を参照でき、上書きの経緯を示せる。
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+**理由**: 「何が、いつ、どこからどこへ送られたか」を見せることがデモの中心価値であるため。
+
+### IV. 事故を再現できる
+
+- 正しい方式だけでなく、ルールが無い場合に起きる事故（Lost Update、二重予約など）を MUST
+  意図的に再現できる。
+- 事故の再現に必要なサーバーポリシー（If-Match 必須/任意、Task 状態遷移チェック ON/OFF など）は
+  デモ制御から切り替えられる。既定値は MUST 安全側（If-Match 必須、遷移チェック ON）とする。
+- 同時操作の結果は MUST 決定的である（同じ版への同時更新は必ず片方だけが成功し、もう片方は 412）。
+- 412 などの競合を受けたクライアントは MUST NOT 自動リトライせず、利用者に状況を示す。
+
+**理由**: 医療従事者に「なぜこの仕組みが必要か」を伝えるには、仕組みが無い場合の事故を見せるのが
+最も効果的であり、講演中に確実に再現できなければならないため。
+
+### V. 医療従事者に伝わる表示
+
+- 画面は MUST 業務用語（日本語）を主に表示し、FHIR のコード値・リソース名を併記する
+  （例：「受付済み `accepted`」）。表示ラベルは `docs/04-design-rules.md` で一元管理する。
+- 業務の段階（オーダー発行 → 採血・検体採取 → 検体受付 → 結果確定・報告 → 完了 など）と
+  FHIR の状態の対応を、画面上で追えるようにする。
+- 講演モード（ステップ送り・解説パネル・ステージビュー）と自習モード（ガイド付き操作・いつでも初期化）の
+  両方を MUST 提供する。
+- エラーは HTTP ステータスだけでなく、業務上の意味（例：「他の利用者が先に更新済み」）で示す。
+
+**理由**: 対象者には技術者だけでなく医師・看護師・技師・薬剤師が含まれ、同じ画面で両者に応える必要があるため。
+
+### VI. FHIR R4 に忠実かつ必要十分
+
+- FHIR のバージョンは MUST R4（4.0.1）とし、リソース・状態値・HTTP の振る舞い
+  （ETag / If-Match / 412、Transaction、If-None-Exist、Subscription）は R4 仕様に従う。
+- FHIR が規定せず実装側に委ねている事項（状態遷移マトリクス、If-Match の必須化など）は、
+  MUST `docs/04-design-rules.md` に明文化してから実装する。
+- 依頼（ServiceRequest / MedicationRequest = 認可の状態）と履行（Task = 進捗）を MUST 分離する。
+- JP Core はワークフローの説明に足る程度に準拠する（`meta.profile` の設定、主要コード体系の使用）。
+  サーバー側のプロファイル検証は行わない。
+- サーバー機能はデモのシナリオが必要とする範囲だけ実装し、汎用 FHIR サーバーとしての網羅性は求めない（YAGNI）。
+
+**理由**: 規格の説明として誤りが無いことと、デモとして作り込みすぎないことを両立するため。
+
+### VII. オフライン・ワンコマンド運用
+
+- デモは MUST 講演者のノート PC 1 台で、インターネット接続なしに動作する。
+  実行時に外部 CDN・外部 API・外部サーバーへ MUST NOT 依存する（フォント等の資産も同梱する）。
+- 起動は MUST `docker compose up` の 1 コマンド、初期状態への復帰は 1 操作（再起動またはデモ制御の初期化）で行える。
+- ビルドはオンライン環境で事前に行い、ビルド済みイメージだけでデモを実行できる。
+
+**理由**: 講演会場・展示ブースのネットワーク環境に左右されず、確実に実演できる必要があるため。
+
+### VIII. ドキュメント先行
+
+- シナリオ・設計ルール・アーキテクチャの変更は、MUST 先に `docs/` を更新し、合意してから実装する。
+- 決定事項・未決事項は `docs/05-decisions.md` で ID を付けて管理する。未決事項に依存する実装は、
+  決定を待つか、暫定である旨を明記して行う。
+- 実装が `docs/` と食い違った場合は、どちらを正とするかを判断し、同じ変更の中で両者を一致させる。
+
+**理由**: 規格の解釈や業務フローの妥当性を、コードを書く前に医療・技術の両面でレビューできるようにするため。
+
+## 技術制約
+
+- **FHIR サーバー**: Java 17 以上。
+  [hapi-fhirstarters-rest-server-skeleton](https://github.com/FirelyTeam/fhirstarters/tree/master/java/hapi-fhirstarters-rest-server-skeleton)
+  をベースにした HAPI FHIR plain server（R4）。HAPI FHIR JPA Server は使わない。
+  流用したソースには元の著作権表示（BSD 系ライセンス）を残す。
+- **構成**: 1 コンテナ・1 プロセス（組み込み Jetty）で、FHIR API（`/fhir/*`）、WebSocket（`/ws/*`）、
+  デモ制御 API（`/demo/*`）、静的 UI を配信する。Gateway / BFF を別プロセスで立てない。
+  通信記録・ポリシー判定は HAPI の Interceptor としてサーバー内に組み込む。
+- **永続化**: インメモリ。再起動・初期化で初期データの状態に戻る。
+- **同時実行**: リソース単位のロックで版の確認と書き込みを不可分に行う。版の不一致は 412 を返す。
+- **Subscription**: R4 の websocket チャネル方式（`bind` / `ping` を受けて画面が最新状態を GET する）。
+- **フロントエンド**: TypeScript + React（Vite でビルド）。ビルド成果物をサーバーの JAR に同梱して配信する。
+- **起動・配布**: Docker Compose。マルチステージビルド（UI ビルド → サーバービルド → JRE 実行イメージ）。
+- **スコープ外**: 認証・認可（SMART on FHIR / OAuth 2.0 / IHE IUA は解説での言及に留める）、
+  DICOM 通信、HL7 v2 の実通信、実在システムとの接続。
+
+## 開発ワークフロー
+
+- 設計の正は `docs/`（01-overview 〜 05-decisions）とする。Spec Kit の各機能仕様（`/speckit-specify`）は
+  `docs/02-demo-scenarios.md` のシナリオ単位（S1〜S5）で作成し、`docs/` を参照する。
+- 各シナリオは MUST 自動結合テスト（JUnit 5 + HAPI Generic Client）でステップを再現し、
+  講演前の動作確認として全件成功を確認できる。排他制御のシナリオは同時更新の結果（片方が 412）まで検証する。
+- `docs/05-decisions.md` の技術検証項目（V-xx）は、該当機能の実装前にスパイクで確認する。
+- ドキュメント・UI 文言・コミットメッセージ以外のコード上の識別子は英語、ドキュメントと UI 文言は日本語とする。
+- レビューでは、本書の原則 I〜VIII への適合を確認する。
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- 本書はプロジェクトの他の慣行・文書に優先する。`docs/` と本書が矛盾する場合は本書を正とし、`docs/` を修正する。
+- 改定は、変更理由・影響範囲を示したうえで合意を得て行い、`docs/05-decisions.md` に決定事項として記録する。
+- バージョンはセマンティックバージョニングに従う。
+  - MAJOR: 原則の削除、または互換性の無い再定義
+  - MINOR: 原則・節の追加、または指針の実質的な拡充
+  - PATCH: 意味を変えない明確化・表現の修正
+- `/speckit-plan` の Constitution Check では原則 I〜VIII をゲートとし、違反がある場合は
+  Complexity Tracking に理由と代替案を記載する。
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-10-01 | **Last Amended**: 2026-10-01
