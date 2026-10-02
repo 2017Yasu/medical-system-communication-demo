@@ -19,12 +19,13 @@ S2 で S1 と同じ場面を使って排他制御を見せられる。
 
 | 種別 | 名称（案） | FHIR リソース |
 |---|---|---|
-| 患者 | デモ 太郎（60 歳 男性）、デモ 花子 | Patient |
+| 患者 | デモ 太郎（60 歳 男性）、デモ 花子、デモ 次郎・デモ 桜子（S3 の初期データの予約の患者） | Patient |
 | 医師 | 医師 X（内科）、医師 Y（外科） | Practitioner / PractitionerRole |
 | 看護師 | 看護師 D（内科外来） | Practitioner / PractitionerRole |
 | 臨床検査技師 | 技師 A、技師 B | Practitioner / PractitionerRole |
 | 薬剤師 | 薬剤師 C | Practitioner / PractitionerRole |
 | 部門 | 検査部、放射線部、薬剤部 | Organization |
+| 機器 | CT-1 号機（放射線部。予約表と 30 分の予約枠を持つ） | Device / Schedule / Slot |
 | システム | 電子カルテ（HIS）、検体検査システム（LIS）、放射線情報システム（RIS）、薬剤部門システム | 画面（ブラウザ）。FHIR 上は Device または MessageHeader.source で表現 |
 
 ---

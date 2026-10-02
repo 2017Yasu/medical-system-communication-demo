@@ -106,7 +106,7 @@ Task.status だけでは表せない段階を Task.businessStatus（`text` に�
 | 薬剤 | HOT コード |
 | 用法 | JAMI 用法コード |
 | 単位 | UCUM |
-| 画像検査 | モダリティは DICOM のコード（例：CT） |
+| 画像検査 | モダリティは DICOM のコード（例：`DCM#CT`。JP_RadiologyModality_VS に含まれる）。検査内容は JJ1017 が JP Terminology 2.2609.0 に含まれないため、デモ用の独自コード（`https://demo.example.jp/fhir/CodeSystem/radiology-procedure`、日本語の `display` 付き）とする（D-39）。放射線の業務上の状態は `https://demo.example.jp/fhir/CodeSystem/rad-business-status`（S3 は `booked` 予約済みだけを使う） |
 | system URI | 上記の版が定める URI を使う。S1 で使うものは specs/001-lab-order-workflow/data-model.md に一覧化 |
 
 ## 表示ラベル

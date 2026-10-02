@@ -80,10 +80,10 @@ HAPI plain server は REST の入口（アノテーションによる振り分�
 | F8 | 条件付き作成（If-None-Exist） | —（サーバーは S1 の実装で対応済み。S3 では使わない。D-40） | 単独リクエストと Transaction 内の両方。一致するものがあれば作らずに既存を返す |
 | F9 | Task 状態遷移チェック | S1, S2 | [04-design-rules.md](04-design-rules.md#task-の状態遷移マトリクス) のマトリクスで判定。デモ制御で ON/OFF |
 | F10 | Subscription | S1〜S4 | 下記 [Subscription](#subscription) 参照 |
-| F11 | Slot 仮押さえのタイムアウト | S3 | スケジューラで `busy-tentative` の Slot を一定秒数後に `free` へ戻す。通常の書き込みと同じロック・版の採番・Subscription 通知を通し、通信記録に送信元「FHIR サーバー（仮押さえの期限切れ）」として残す（D-37） |
+| F11 | Slot 仮押さえのタイムアウト | S3 | スケジューラで `busy-tentative` の Slot を一定秒数後に `free` へ戻す。期限は仮押さえを受け付けた時点の秒数で決め、書き込みロックの中で版が変わっていないことを確かめてから戻す。通常の書き込みと同じロック・版の採番・Subscription 通知を通し、通信記録に送信元「FHIR サーバー（仮押さえの期限切れ）」（`kind = "server"`）として残す（D-37、specs/003 research R-05・R-06） |
 | F12 | `$process-message` | S5 | Message Bundle を受け、中のリソースを登録する |
-| F13 | 通信記録と配信 | 全シナリオ | `/fhir/*` のサーブレットフィルタでリクエスト/レスポンス（メソッド・URL・ヘッダ・本文・ステータス・所要時間・送信元画面）を記録し、WebSocket で通信モニタへ配信。送信元画面は UI が全要求に付ける `X-Demo-Client` ヘッダ（FHIR の処理には影響しない独自ヘッダ）で識別する |
-| F14 | デモ制御 API | 全シナリオ | 初期化、初期データ投入、ポリシー切替、タイムアウト秒数の変更。ポリシーには、サーバーの判定には使わず画面だけが読む「検体検査システムが If-Match を付けるか」（`labSendsIfMatch`、S2）も含める（別ウィンドウ間で設定を共有する唯一の経路のため）。S3 の電子カルテの予約方式（仮押さえを使う / Appointment を直接作る）も同じ扱いとする（D-36）。S2 の準備（初期化 → ポリシー → 依頼・採血）はデモ制御パネルの画面（`/control`）が FHIR の要求として送り、サーバー側に準備用の API は作らない（specs/002 research R-01・R-02） |
+| F13 | 通信記録と配信 | 全シナリオ | `/fhir/*` のサーブレットフィルタでリクエスト/レスポンス（メソッド・URL・ヘッダ・本文・ステータス・所要時間・送信元画面）を記録し、WebSocket で通信モニタへ配信。送信元画面は UI が全要求に付ける `X-Demo-Client` ヘッダ（FHIR の処理には影響しない独自ヘッダ）で識別する。HTTP の要求ではないサーバー内の処理（S3 の仮押さえの期限切れ）は `kind = "server"` の記録として残す |
+| F14 | デモ制御 API | 全シナリオ | 初期化、初期データ投入、ポリシー切替、タイムアウト秒数の変更。ポリシーには、サーバーの判定には使わず画面だけが読む「検体検査システムが If-Match を付けるか」（`labSendsIfMatch`、S2）も含める（別ウィンドウ間で設定を共有する唯一の経路のため）。S3 の電子カルテの予約方式（`ehrUsesSlotHold`。仮押さえを使う / Appointment を直接作る）も同じ扱いとする（D-36）。仮押さえの期限は `slotHoldSeconds`（既定 30、1〜300）。S3 の準備は初期化 → ポリシーの 2 段階（specs/003 research R-11）。S2 の準備（初期化 → ポリシー → 依頼・採血）はデモ制御パネルの画面（`/control`）が FHIR の要求として送り、サーバー側に準備用の API は作らない（specs/002 research R-01・R-02） |
 | F15 | CapabilityStatement | — | HAPI の自動生成をそのまま利用 |
 
 ### 検索パラメータ（最小限）
@@ -95,8 +95,8 @@ HAPI plain server は REST の入口（アノテーションによる振り分�
 | DiagnosticReport | `based-on`, `subject` | 結果の表示 |
 | Observation | `based-on`, `subject` | 結果の表示 |
 | MedicationRequest / MedicationDispense | `subject`, `status` | 処方・調剤の一覧 |
-| Slot | `schedule`, `status`, `start` | 予約枠カレンダー |
-| Appointment | `slot`, `status` | 予約一覧（枠ごとの予約） |
+| Slot | `schedule`, `status` | 予約枠カレンダー、Subscription の条件（`schedule`） |
+| Appointment | `slot`, `status`, `patient`, `practitioner` | 予約一覧（枠ごとの予約） |
 | Patient | `identifier`, `name` | 患者選択 |
 
 ### 同時実行の扱い
@@ -148,7 +148,7 @@ docker compose down      # 停止（インメモリのためデータは消え�
 | server-build | Maven + JDK | 静的ファイルを取り込み、実行可能 JAR をビルド |
 | runtime | JRE | 実行可能 JAR だけを含む最終イメージ |
 
-- `compose.yml` のサービスは `demo` の 1 つ。ポート、If-Match ポリシーの既定値、Slot タイムアウト秒数などは環境変数で設定する。
+- `compose.yml` のサービスは `demo` の 1 つ。ポート（`PORT`）と Slot 仮押さえの期限の既定値（`SLOT_HOLD_SECONDS`、未設定なら 30）は環境変数で設定する。
 - 開発時は UI を Vite の開発サーバー（ホットリロード）で動かし、FHIR へのリクエストをコンテナにプロキシする構成も使えるようにする。
 
 ### オフライン運用
