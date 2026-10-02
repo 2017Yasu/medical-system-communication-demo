@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptConflictError, toDisplayError } from "../../src/fhir/errors";
+import { acceptConflictError, toDisplayError, slotHoldConflictError, slotHoldExpiredError } from "../../src/fhir/errors";
 
 function outcome(diagnostics: string) {
   return { resourceType: "OperationOutcome", issue: [{ severity: "error", code: "processing", diagnostics }] };
@@ -75,5 +75,34 @@ describe("acceptConflictError (412 on accept, specs/002 R-04)", () => {
     const generic = "他の利用者が先に更新しました。最新の状態を表示します";
     expect(acceptConflictError(task("cancelled", "Organization/lab-dept")).message).toBe(generic);
     expect(acceptConflictError(task("requested", "Organization/lab-dept")).message).toBe(generic);
+  });
+});
+
+describe("S3 slot errors (specs/003 R-09)", () => {
+  it("names the doctor who holds the slot (from the display-only comment)", () => {
+    const e = slotHoldConflictError({ status: "busy-tentative", comment: "仮押さえ：医師 X" });
+    expect(e.message).toBe("この枠は 医師 X が仮押さえ中です。別の枠を選んでください");
+    expect(e.httpLabel).toBe("412 Precondition Failed");
+    expect(e.kind).toBe("conflict");
+    expect(e.text).toBe("この枠は 医師 X が仮押さえ中です。別の枠を選んでください（412 Precondition Failed）");
+  });
+
+  it("says the slot is already booked when it is busy", () => {
+    const e = slotHoldConflictError({ status: "busy" });
+    expect(e.message).toBe("この枠は既に予約済みです。別の枠を選んでください");
+    expect(e.httpLabel).toBe("412 Precondition Failed");
+  });
+
+  it("falls back to the generic conflict message otherwise", () => {
+    expect(slotHoldConflictError({ status: "free" }).message).toBe("他の利用者が先に更新しました。最新の状態を表示します");
+    // 仮押さえ中でも comment から名前が取れなければ、誰かは言わずに仮押さえ中とだけ伝える
+    expect(slotHoldConflictError({ status: "busy-tentative" }).message).toBe("この枠は他の利用者が仮押さえ中です。別の枠を選んでください");
+  });
+
+  it("explains an expired hold", () => {
+    const e = slotHoldExpiredError();
+    expect(e.message).toBe("仮押さえの期限が切れました。枠を選び直してください");
+    expect(e.httpLabel).toBe("412 Precondition Failed");
+    expect(e.kind).toBe("conflict");
   });
 });

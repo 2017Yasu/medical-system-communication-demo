@@ -7,7 +7,7 @@ import { acceptConflictError } from "../../fhir/errors";
 import { beginAccept, confirmAccept, rejectTask, rerunTask, startTask } from "../../fhir/labActions";
 import { monitorSocket } from "../../realtime/monitorSocket";
 import { useLiveData } from "../../realtime/useLiveData";
-import { useRowChanges } from "../shared/rowChanges";
+import { useRowChanges, type ChangeField } from "../shared/rowChanges";
 import { LIS_OWNERS, loadLabOrders, orderNumber, orderedSetNames, taskBusinessStatus, type OrderRow } from "../shared/orders";
 import { SrStatus, TaskStatus, ownerLabel } from "../shared/StatusBadges";
 import { AcceptDraftPanel, type AcceptDraft } from "./AcceptDraftPanel";
@@ -151,7 +151,7 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
                           <div className="row-change" data-testid={`row-change-${id}`}>
                             {change.fields.map((f) => (
                               <div key={f.field}>
-                                {FIELD_LABEL[f.field]}：{f.before} → {f.after}
+                                {FIELD_LABEL[f.field as ChangeField]}：{f.before} → {f.after}
                               </div>
                             ))}
                           </div>

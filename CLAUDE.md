@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 医療機関の FHIR サーバーと部門システム（電子カルテ・検体検査）の連携を、医療従事者にも分かりやすく見せるデモ。
 ドキュメント・UI 文言・コミットメッセージ以外のコード上の識別子は英語、ドキュメントと UI 文言は日本語。
-現在の実装範囲は S1（検体検査）と S2（同時受付の排他制御）。S3〜S5（放射線の予約枠、処方調剤、Message Bundle）は `docs/` に設計のみ。
+現在の実装範囲は S1（検体検査）・S2（同時受付の排他制御）・S3（CT の予約枠の取り合い）。S4・S5（処方調剤、Message Bundle）は `docs/` に設計のみ。
 
 `.specify/memory/constitution.md`（v1.1.0）が最優先。特に次を守る：
 - 画面同士は FHIR サーバー経由でのみ通信する（直接通信・独自バックエンド禁止）。デモの初期化・ポリシー変更（`/demo/*`）だけが例外。
@@ -23,6 +23,7 @@ mvn verify -Dit.test=S1ScenarioIT                # 統合テストを 1 クラ�
 mvn test -Dtest=IfMatchRuleTest                  # 単体テストを 1 クラスだけ
 mvn verify -Ds1.repeat=20                        # S1 系シナリオを 20 回繰り返す（SC-004）
 mvn verify -Dit.test=S2ScenarioIT -Ds2.repeat=100  # S2（同時確定は既定 100 回、S2-1・S2-3 は 20 回）
+mvn verify -Dit.test=S3ScenarioIT -Ds3.repeat=100  # S3（同時の仮押さえは既定 100 回、S3-1〜S3-3 は 20 回。期限切れは期限 1 秒で確かめる）
 mvn -DskipTests package                          # server/target/demo-server.jar（shade の実行可能 JAR）
 
 # UI — ui/ で実行
@@ -36,6 +37,7 @@ npm run build
 npx playwright install chromium && npx playwright test
 npx playwright test tests/e2e/presentation.spec.ts -g "次へ"
 S2_REPEAT=100 npx playwright test tests/e2e/s2-concurrent.spec.ts   # S2（画面からの同時確定の繰り返し回数。既定 5）
+S3_REPEAT=100 npx playwright test tests/e2e/s3-slot-booking.spec.ts -g "同時に仮押さえ"   # S3（画面からの同時の仮押さえ。既定 5）
 
 # 起動
 docker compose build && docker compose up        # http://localhost:8080/
@@ -79,8 +81,18 @@ scripts/fetch-jp-packages.sh [--check|--force]
 - 受付は S1 も含め **GET → PATCH の 2 段階**（D-27）。`AcceptDraft`（`systems/lis/AcceptDraftPanel.tsx`）が受付を始めた時点の ETag を確定まで保持する（一覧の行の ETag は通知のたびに最新になるため使えない）。
 - 一覧の変化は `systems/shared/rowChanges.ts` が検出し、変更前 → 変更後を 10 秒表示する（D-28）。
 
+### S3（CT の予約枠の取り合い）の要点
+- **ステージビューを使わない**（D-33）。`/control`・`/ehr/ct?doctor=dr-x`・`/ehr/ct?doctor=dr-y`・`/ris`・`/monitor` を別ウィンドウで開き、`docs/06-demo-procedures.md` の S3 の節に従って手で操作する。画面上の案内は無い。
+- 「S3-x の準備」ボタン（`ui/src/demo/prepare.ts`）は **初期化 → `PUT /demo/policy`（`ehrUsesSlotHold`）の 2 段階だけ**（S2 と違い依頼・採血を送らない）。`demo.reset` の通知には初期化後のポリシーが載る（画面が取り直すと、「初期化 → 設定」の途中で古い値が後から届いて上書きしてしまう）。
+- `ehrUsesSlotHold`（`DemoPolicy`）は**サーバーの判定には使わない**。電子カルテの CT 予約画面だけが読む、「仮押さえを使うか／直接予約するか」のデモ設定（S3-1 の二重予約を、サーバーの規則を変えずに再現するため）。`slotHoldSeconds`（既定 30、API は 1〜300、画面は 10〜300、環境変数 `SLOT_HOLD_SECONDS`）はサーバーの期限切れが使う。
+- **予約枠は初期化のたびに生成**する（`slot/SlotSeedGenerator`）：日本時間の翌日 9:00〜12:00 の 30 分 × 6。id は日付を含まない `ct1-0900`〜`ct1-1130`（テスト・手順書が日付に依存しない）。9:00・11:00 は予約済み。Slot・Appointment は書き込み可、Schedule・Device は読み取り専用。Slot の状態遷移はサーバーで検査しない。
+- **仮押さえの期限切れ**（`slot/SlotHoldExpiry`）：コミットされた `busy-tentative` の Slot を「版・更新日時・期限（更新日時 + 受け付けた時点の秒数）」で保持し、250 ms ごとに確認する。書き込みロックの中で版が変わっていないことを確かめて `free` に戻すので、確定・取りやめと同時に起きても片方だけが反映される。通信記録に **`kind = "server"`**（送信元 `server-slot-expiry`、`serverAction`）として残り、通信モニタは FHIR サーバーの列の帯で表示する（憲章の原則 III の例外）。初期化で保持を消す。
+- 確定は Transaction（`PUT Slot`（`busy`、`ifMatch` = 仮押さえの版）+ Appointment + ServiceRequest + Task）。**If-None-Exist は使わない**（D-40：一致すれば既存を返す＝成功なので、取り合いの拒否にならない）。直接予約は Slot の PUT を含まない同じ Transaction。
+- 電子カルテの CT 予約は「枠を選ぶ（その時点の版を `BookingDraft` に保持）→ 仮押さえ → 確定」。一覧の行の版は通知のたびに最新になるため使えない（S2 の `AcceptDraft` と同じ）。押さえた人は `Slot.comment`（「仮押さえ：医師 X」）に**表示用**として書き、判定には使わない（D-35）。
+- 医師 X の CT の依頼が S1 の検体検査の一覧・準備に混ざらないよう、`ServiceRequest` の検索は `category`（検体検査 `108252007`／画像検査 `363679005`）で絞る。通信モニタは Transaction の中身の表（`monitor/transactionSummary.ts`）と、記録にある画面の種類で決まる列（`lanesFor`）を持つ。
+
 ## ドキュメントと仕様
 
 - `docs/`：設計（概要、シナリオ S1〜S5、アーキテクチャ、設計ルール＝状態遷移・表示ラベル・コード体系、決定事項と未決事項）。
-- `specs/001-lab-order-workflow/`・`specs/002-concurrent-acceptance/`（S2）：Spec Kit 成果物（spec / plan / research / data-model / contracts / quickstart / tasks / validation-results）。API・WebSocket・画面の契約は `contracts/`。
+- `specs/001-lab-order-workflow/`・`specs/002-concurrent-acceptance/`（S2）・`specs/003-ct-slot-booking/`（S3）：Spec Kit 成果物（spec / plan / research / data-model / contracts / quickstart / tasks / validation-results）。API・WebSocket・画面の契約は `contracts/`。
 - 新しい機能は `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement` の流れ（`.specify/`、`.claude/skills/`）。

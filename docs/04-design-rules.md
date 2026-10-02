@@ -68,7 +68,7 @@ Task.status だけでは表せない段階を Task.businessStatus（`text` に�
 | 版の不一致 | `412 Precondition Failed`（OperationOutcome 付き） |
 | 412 を受けたクライアント | **自動リトライしない**。「他の利用者が先に更新しました」と表示し、最新の状態を取り直して画面に反映する。続けるかどうかは利用者が判断する |
 | Transaction 内 | 更新するエントリには `entry.request.ifMatch` を付ける。1 件でも不一致なら全体を元に戻し `412` |
-| 対象外 | create（POST）には If-Match が使えないため、重複防止は If-None-Exist で行う |
+| 対象外 | create（POST）には If-Match が使えない。If-None-Exist は一致するものがあれば作らずに既存を返す（成功）ため、同じものの二重登録の防止には使えるが、数に限りがある枠の取り合いの拒否には使えない。枠の取り合いは Slot の版の確認で防ぐ（D-40） |
 
 ## Transaction Bundle の利用単位
 
@@ -79,7 +79,7 @@ Task.status だけでは表せない段階を Task.businessStatus（`text` に�
 | 検査結果（全項目確定） | Observation × n（POST）+ DiagnosticReport（POST、`final`）+ Task（PUT、`ifMatch`、`completed`、output）+ ServiceRequest（PUT、`ifMatch`、`completed`） |
 | 検査結果（一部先行） | Observation × n（POST）+ DiagnosticReport（POST、`partial`）。Task・ServiceRequest は更新しない |
 | 依頼の取消 | ServiceRequest（PUT、`revoked`）+ Task（PUT、`cancelled`）、どちらも `ifMatch` |
-| CT 予約の確定 | Slot（PUT、`busy`、`ifMatch`）+ Appointment（POST、`ifNoneExist`）+ ServiceRequest（POST）+ Task（POST） |
+| CT 予約の確定 | Slot（PUT、`busy`、`ifMatch`）+ Appointment（POST）+ ServiceRequest（POST）+ Task（POST） |
 | 処方 | MedicationRequest（POST）+ Task（POST） |
 | 払出 | MedicationDispense（POST）+ Task（PUT、`ifMatch`、`completed`、output） |
 
@@ -88,8 +88,9 @@ Task.status だけでは表せない段階を Task.businessStatus（`text` に�
 ## 予約枠（Slot）
 
 - 状態の流れ：`free` →（仮押さえ）`busy-tentative` →（確定）`busy`。
-- 仮押さえのタイムアウト：既定 **30 秒**（デモ用。デモ制御パネルで変更可）。超過したら `free` に戻す。
-- 確定時の If-None-Exist：`Appointment?slot=Slot/{id}&status=booked`（有効な予約だけを条件にする）。
+- 仮押さえ中は `Slot.comment` に押さえた人を書く（例：「仮押さえ：医師 X」）。表示用であり、確定できるかどうかは版（`ifMatch`）だけで判定する。`free` に戻すときは消す（D-35）。
+- 仮押さえのタイムアウト：既定 **30 秒**（デモ用。デモ制御パネルで変更可）。超過したら `free` に戻す。この更新は通信記録に送信元「FHIR サーバー（仮押さえの期限切れ）」として残す（D-37）。
+- 確定の Transaction の Slot の更新には、仮押さえで得た版の `ifMatch` を付ける。期限切れ・他の利用者の更新で版が変わっていれば全体が `412` になる。Appointment に If-None-Exist は付けない（D-40）。
 - 仮押さえに失敗した画面（412）は自動リトライせず、別の枠の選択を促す。
 
 ## コード体系と JP Core
@@ -105,7 +106,7 @@ Task.status だけでは表せない段階を Task.businessStatus（`text` に�
 | 薬剤 | HOT コード |
 | 用法 | JAMI 用法コード |
 | 単位 | UCUM |
-| 画像検査 | モダリティは DICOM のコード（例：CT） |
+| 画像検査 | モダリティは DICOM のコード（例：`DCM#CT`。JP_RadiologyModality_VS に含まれる）。検査内容は JJ1017 が JP Terminology 2.2609.0 に含まれないため、デモ用の独自コード（`https://demo.example.jp/fhir/CodeSystem/radiology-procedure`、日本語の `display` 付き）とする（D-39）。放射線の業務上の状態は `https://demo.example.jp/fhir/CodeSystem/rad-business-status`（S3 は `booked` 予約済みだけを使う） |
 | system URI | 上記の版が定める URI を使う。S1 で使うものは specs/001-lab-order-workflow/data-model.md に一覧化 |
 
 ## 表示ラベル

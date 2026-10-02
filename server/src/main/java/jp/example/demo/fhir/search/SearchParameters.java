@@ -8,6 +8,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.hl7.fhir.r4.model.Appointment;
+import org.hl7.fhir.r4.model.CodeableConcept;
 import org.hl7.fhir.r4.model.DiagnosticReport;
 import org.hl7.fhir.r4.model.Identifier;
 import org.hl7.fhir.r4.model.Observation;
@@ -15,6 +17,7 @@ import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Reference;
 import org.hl7.fhir.r4.model.Resource;
 import org.hl7.fhir.r4.model.ServiceRequest;
+import org.hl7.fhir.r4.model.Slot;
 import org.hl7.fhir.r4.model.Task;
 
 /**
@@ -39,7 +42,20 @@ public final class SearchParameters {
         sr.put("subject", r -> ref(((ServiceRequest) r).getSubject()));
         sr.put("requester", r -> ref(((ServiceRequest) r).getRequester()));
         sr.put("status", r -> code(((ServiceRequest) r).getStatusElement().getValueAsString()));
+        sr.put("category", r -> tokens(((ServiceRequest) r).getCategory()));
         DEFS.put("ServiceRequest", sr);
+
+        Map<String, Function<Resource, List<String>>> slot = new LinkedHashMap<>();
+        slot.put("schedule", r -> ref(((Slot) r).getSchedule()));
+        slot.put("status", r -> code(((Slot) r).getStatusElement().getValueAsString()));
+        DEFS.put("Slot", slot);
+
+        Map<String, Function<Resource, List<String>>> appointment = new LinkedHashMap<>();
+        appointment.put("slot", r -> refs(((Appointment) r).getSlot()));
+        appointment.put("status", r -> code(((Appointment) r).getStatusElement().getValueAsString()));
+        appointment.put("patient", r -> actors((Appointment) r, "Patient/"));
+        appointment.put("practitioner", r -> actors((Appointment) r, "Practitioner/"));
+        DEFS.put("Appointment", appointment);
 
         Map<String, Function<Resource, List<String>>> dr = new LinkedHashMap<>();
         dr.put("based-on", r -> refs(((DiagnosticReport) r).getBasedOn()));
@@ -53,7 +69,7 @@ public final class SearchParameters {
         patient.put("identifier", r -> identifiers(((Patient) r).getIdentifier()));
         DEFS.put("Patient", patient);
 
-        for (String type : List.of("Practitioner", "PractitionerRole", "Organization", "Specimen", "Subscription")) {
+        for (String type : List.of("Practitioner", "PractitionerRole", "Organization", "Specimen", "Subscription", "Schedule", "Device")) {
             DEFS.put(type, new LinkedHashMap<>());
         }
     }
@@ -101,6 +117,31 @@ public final class SearchParameters {
         List<String> out = new ArrayList<>();
         for (Reference r : list) {
             out.addAll(ref(r));
+        }
+        return out;
+    }
+
+    /** Appointment.participant.actor のうち、指定した種別（`Patient/` など）の参照。 */
+    private static List<String> actors(Appointment a, String typePrefix) {
+        List<String> out = new ArrayList<>();
+        for (Appointment.AppointmentParticipantComponent p : a.getParticipant()) {
+            out.addAll(ref(p.getActor()).stream().filter(v -> v.startsWith(typePrefix)).toList());
+        }
+        return out;
+    }
+
+    /** CodeableConcept のトークン。`code` と `system|code` の両方を返す。 */
+    private static List<String> tokens(List<CodeableConcept> concepts) {
+        List<String> out = new ArrayList<>();
+        for (CodeableConcept c : concepts) {
+            for (org.hl7.fhir.r4.model.Coding coding : c.getCoding()) {
+                if (coding.hasCode()) {
+                    out.add(coding.getCode());
+                    if (coding.hasSystem()) {
+                        out.add(coding.getSystem() + "|" + coding.getCode());
+                    }
+                }
+            }
         }
         return out;
     }

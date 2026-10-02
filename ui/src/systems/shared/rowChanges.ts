@@ -1,4 +1,5 @@
 // 通知で一覧を取り直したとき、作業の状態・業務上の状態・担当者が変わった行を見つける（D-28、specs/002 R-06）。
+// 検体検査の一覧（diffRows）のほか、CT の枠の一覧（specs/003、systems/shared/slots.ts の diffSlotRows）も同じ仕組みで示す。
 // これは「表示が変わった」ことの強調であって、サーバーが上書きを検知したわけではない。エラー・警告としては扱わない。
 import { useEffect, useRef, useState } from "react";
 import { businessStatusLabel, formatStatus } from "../../fhir/labels";
@@ -11,13 +12,14 @@ export const CHANGE_TTL_MS = 10_000;
 export type ChangeField = "status" | "businessStatus" | "owner";
 
 export interface FieldChange {
-  field: ChangeField;
+  /** 変わった項目（検体検査は ChangeField、CT の枠は "status" | "holder" | "bookings"）。 */
+  field: string;
   before: string;
   after: string;
 }
 
 export interface RowChange {
-  /** 変わった行（依頼の id）。 */
+  /** 変わった行の id（検体検査は依頼の id、CT の枠は枠の id）。 */
   srId: string;
   fields: FieldChange[];
 }
@@ -70,8 +72,11 @@ export function mergeChanges(existing: StampedChange[], fresh: RowChange[], now:
  * 一覧が取り直されるたびに前回の表示と比べ、変わった行を 10 秒間保持する。
  * rows が null（読み込み中・初期化の直後）のときは比較の基準を捨てる。
  */
-export function useRowChanges(rows: OrderRow[] | null | undefined): StampedChange[] {
-  const prev = useRef<OrderRow[] | null>(null);
+export function useRowChanges<T = OrderRow>(
+  rows: T[] | null | undefined,
+  diff: (prev: T[] | null, next: T[]) => RowChange[] = diffRows as unknown as (prev: T[] | null, next: T[]) => RowChange[],
+): StampedChange[] {
+  const prev = useRef<T[] | null>(null);
   const [changes, setChanges] = useState<StampedChange[]>([]);
 
   useEffect(() => {
@@ -80,13 +85,13 @@ export function useRowChanges(rows: OrderRow[] | null | undefined): StampedChang
       setChanges([]);
       return;
     }
-    const fresh = diffRows(prev.current, rows);
+    const fresh = diff(prev.current, rows);
     prev.current = rows;
     if (fresh.length > 0) {
       const now = Date.now();
       setChanges((c) => mergeChanges(pruneChanges(c, now), fresh, now));
     }
-  }, [rows]);
+  }, [rows]); // eslint-disable-line react-hooks/exhaustive-deps -- diff は呼び出し側で固定の関数を渡す
 
   useEffect(() => {
     if (changes.length === 0) return;

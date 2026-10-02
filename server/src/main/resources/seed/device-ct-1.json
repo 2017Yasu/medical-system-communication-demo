@@ -1,0 +1,24 @@
+{
+  "resourceType": "Device",
+  "id": "ct-1",
+  "status": "active",
+  "deviceName": [
+    {
+      "name": "CT-1 号機",
+      "type": "user-friendly-name"
+    }
+  ],
+  "type": {
+    "coding": [
+      {
+        "system": "http://dicom.nema.org/resources/ontology/DCM",
+        "code": "CT",
+        "display": "Computed Tomography"
+      }
+    ],
+    "text": "CT 装置"
+  },
+  "owner": {
+    "reference": "Organization/rad-dept"
+  }
+}

@@ -72,7 +72,17 @@ public final class DemoControlServlet extends HttpServlet {
         Boolean ifMatch = optionalBoolean(body, "ifMatchRequired");
         Boolean transition = optionalBoolean(body, "taskTransitionCheck");
         Boolean labSendsIfMatch = optionalBoolean(body, "labSendsIfMatch");
-        control.updatePolicy(ifMatch, transition, labSendsIfMatch);
+        Boolean ehrUsesSlotHold = optionalBoolean(body, "ehrUsesSlotHold");
+        Integer slotHoldSeconds = null;
+        if (body != null && body.has("slotHoldSeconds") && !body.get("slotHoldSeconds").isNull()) {
+            JsonNode n = body.get("slotHoldSeconds");
+            if (!n.isIntegralNumber() || !n.canConvertToInt() || !DemoPolicy.isValidSlotHoldSeconds(n.asInt())) {
+                error(resp, 400, "slotHoldSeconds は 1〜300 の整数で指定してください"); // ほかの項目も変更しない
+                return;
+            }
+            slotHoldSeconds = n.asInt();
+        }
+        control.updatePolicy(ifMatch, transition, labSendsIfMatch, ehrUsesSlotHold, slotHoldSeconds);
         json(resp, 200, policyJson());
     }
 
@@ -85,6 +95,8 @@ public final class DemoControlServlet extends HttpServlet {
         m.put("ifMatchRequired", control.policy().ifMatchRequired());
         m.put("taskTransitionCheck", control.policy().taskTransitionCheck());
         m.put("labSendsIfMatch", control.policy().labSendsIfMatch());
+        m.put("ehrUsesSlotHold", control.policy().ehrUsesSlotHold());
+        m.put("slotHoldSeconds", control.policy().slotHoldSeconds());
         return m;
     }
 

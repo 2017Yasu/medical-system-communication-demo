@@ -12,13 +12,17 @@ import jp.example.demo.demo.DemoPolicy;
 import jp.example.demo.demo.SeedLoader;
 import jp.example.demo.fhir.DemoRestfulServer;
 import jp.example.demo.fhir.ResourceWriter;
+import jp.example.demo.fhir.provider.AppointmentProvider;
+import jp.example.demo.fhir.provider.DeviceProvider;
 import jp.example.demo.fhir.provider.DiagnosticReportProvider;
 import jp.example.demo.fhir.provider.ObservationProvider;
 import jp.example.demo.fhir.provider.OrganizationProvider;
 import jp.example.demo.fhir.provider.PatientProvider;
 import jp.example.demo.fhir.provider.PractitionerProvider;
 import jp.example.demo.fhir.provider.PractitionerRoleProvider;
+import jp.example.demo.fhir.provider.ScheduleProvider;
 import jp.example.demo.fhir.provider.ServiceRequestProvider;
+import jp.example.demo.fhir.provider.SlotProvider;
 import jp.example.demo.fhir.provider.SpecimenProvider;
 import jp.example.demo.fhir.provider.SubscriptionProvider;
 import jp.example.demo.fhir.provider.TaskProvider;
@@ -26,6 +30,8 @@ import jp.example.demo.fhir.rules.IfMatchRule;
 import jp.example.demo.fhir.rules.TaskTransitionRule;
 import jp.example.demo.fhir.system.TransactionProcessor;
 import jp.example.demo.fhir.system.TransactionProvider;
+import jp.example.demo.slot.SlotHoldExpiry;
+import jp.example.demo.slot.SlotSeedGenerator;
 import jp.example.demo.store.InMemoryRepository;
 import jp.example.demo.subscription.SubscriptionEngine;
 import jp.example.demo.subscription.SubscriptionWebSocketEndpoint;
@@ -57,13 +63,16 @@ public final class DemoServerMain {
 
     /** サーバーを起動して返す（テストからはポート 0 でランダムポートを使う）。 */
     public static Server start(int port) throws Exception {
-        DemoPolicy policy = new DemoPolicy();
+        DemoPolicy policy = new DemoPolicy(slotHoldSecondsFromEnv());
         InMemoryRepository repo = new InMemoryRepository();
         TrafficLog traffic = new TrafficLog();
         MonitorBroadcaster monitor = new MonitorBroadcaster();
         traffic.addListener(monitor::traffic);
         SubscriptionEngine subscriptions = new SubscriptionEngine(repo, traffic);
-        DemoControl control = new DemoControl(repo, traffic, subscriptions, monitor, policy, new SeedLoader());
+        SlotHoldExpiry slotHoldExpiry = new SlotHoldExpiry(repo, traffic, policy, java.time.Clock.systemUTC());
+        repo.addListener(slotHoldExpiry);
+        DemoControl control = new DemoControl(
+                repo, traffic, subscriptions, monitor, policy, new SeedLoader(), new SlotSeedGenerator(java.time.Clock.systemUTC()), slotHoldExpiry);
         control.reset();
 
         ResourceWriter writer = new ResourceWriter(new IfMatchRule(policy), new TaskTransitionRule(policy));
@@ -77,7 +86,11 @@ public final class DemoServerMain {
                 new SpecimenProvider(repo, writer),
                 new ObservationProvider(repo, writer),
                 new DiagnosticReportProvider(repo, writer),
-                new SubscriptionProvider(repo, writer));
+                new SubscriptionProvider(repo, writer),
+                new SlotProvider(repo, writer),
+                new AppointmentProvider(repo, writer),
+                new ScheduleProvider(repo, writer),
+                new DeviceProvider(repo, writer));
         List<Object> plain = List.of(new TransactionProvider(new TransactionProcessor(repo, writer)));
 
         Server server = new Server(port);
@@ -96,8 +109,29 @@ public final class DemoServerMain {
         });
 
         server.setHandler(context);
+        server.addEventListener(new org.eclipse.jetty.util.component.LifeCycle.Listener() {
+            @Override
+            public void lifeCycleStopping(org.eclipse.jetty.util.component.LifeCycle event) {
+                slotHoldExpiry.stop();
+            }
+        });
+        slotHoldExpiry.start();
         server.start();
         return server;
+    }
+
+    /** 環境変数 SLOT_HOLD_SECONDS（1〜300 の整数）。未設定・不正なら既定の 30 秒。 */
+    private static int slotHoldSecondsFromEnv() {
+        String v = System.getenv("SLOT_HOLD_SECONDS");
+        if (v == null || v.isBlank()) {
+            return DemoPolicy.DEFAULT_SLOT_HOLD_SECONDS;
+        }
+        try {
+            int n = Integer.parseInt(v.trim());
+            return DemoPolicy.isValidSlotHoldSeconds(n) ? n : DemoPolicy.DEFAULT_SLOT_HOLD_SECONDS;
+        } catch (NumberFormatException e) {
+            return DemoPolicy.DEFAULT_SLOT_HOLD_SECONDS;
+        }
     }
 
     /** 接続ごとに同じ Endpoint インスタンス（共有の状態を持つ）を使う。 */

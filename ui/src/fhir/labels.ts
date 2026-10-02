@@ -58,3 +58,39 @@ export function businessStatusLabel(code: string): string {
 export function businessStatusCode(businessStatus?: { coding?: { code?: string }[] }): string | undefined {
   return businessStatus?.coding?.[0]?.code;
 }
+
+const RAD_BUSINESS_STATUS: Record<string, string> = Object.fromEntries(
+  master.radBusinessStatuses.map((b) => [b.code, b.display]),
+);
+
+/** 放射線の業務上の状態（Task.businessStatus のコード）の表示。未知のコードはそのまま返す。 */
+export function radBusinessStatusLabel(code: string): string {
+  return RAD_BUSINESS_STATUS[code] ?? code;
+}
+
+const JAPAN_DATE = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", weekday: "short" });
+const JAPAN_TIME = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+/** 日本時間の「10/3（土）10:00–10:30」。ブラウザ・サーバーのタイムゾーンに依存しない（specs/003 R-02）。 */
+export function formatSlotTime(start: string, end: string): string {
+  const s = new Date(start);
+  const parts = Object.fromEntries(JAPAN_DATE.formatToParts(s).map((p) => [p.type, p.value]));
+  return `${parts.month}/${parts.day}（${parts.weekday}）${JAPAN_TIME.format(s)}–${JAPAN_TIME.format(new Date(end))}`;
+}
+
+const HOLD_PREFIX = "仮押さえ：";
+
+/**
+ * 仮押さえ中の枠の Slot.comment（「仮押さえ：医師 X」）から押さえた人の名前を取り出す。
+ * comment は表示用で、確定できるかどうかの判定には使わない（D-35）。
+ */
+export function holderName(comment: string | undefined | null): string | null {
+  if (!comment || !comment.startsWith(HOLD_PREFIX)) return null;
+  const name = comment.slice(HOLD_PREFIX.length).trim();
+  return name === "" ? null : name;
+}
+
+/** 仮押さえの comment（「仮押さえ：医師 X」）。 */
+export function holdComment(doctorName: string): string {
+  return `${HOLD_PREFIX}${doctorName}`;
+}

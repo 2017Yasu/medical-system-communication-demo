@@ -2,6 +2,7 @@
 import type { Patient, ServiceRequest, Task } from "fhir/r4";
 import type { FhirClient, Versioned } from "../../fhir/client";
 import { businessStatusCode } from "../../fhir/labels";
+import { LAB_CATEGORY_CODE } from "../../fhir/builders/labOrder";
 
 export interface OrderRow {
   sr: Versioned<ServiceRequest>;
@@ -52,7 +53,8 @@ export async function loadPatients(client: FhirClient): Promise<Versioned<Patien
 /** 電子カルテ（医師）：自分が出した依頼。 */
 export async function loadDoctorOrders(client: FhirClient): Promise<{ rows: OrderRow[]; patients: Versioned<Patient>[] }> {
   const [srs, tasks, patients] = await Promise.all([
-    client.search<ServiceRequest>("ServiceRequest", { requester: "Practitioner/dr-x" }),
+    // 検体検査の依頼だけ（医師 X の CT の依頼は電子カルテの CT 予約画面で扱う。specs/003 R-08）
+    client.search<ServiceRequest>("ServiceRequest", { requester: "Practitioner/dr-x", category: LAB_CATEGORY_CODE }),
     client.search<Task>("Task", { requester: "Practitioner/dr-x" }),
     loadPatients(client),
   ]);

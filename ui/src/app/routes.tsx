@@ -3,8 +3,10 @@ import { ControlPanel } from "./ControlPanel";
 import { Launcher } from "./Launcher";
 import { StageView } from "./StageView";
 import { MonitorScreen } from "../monitor/MonitorScreen";
+import { CtBookingScreen } from "../systems/ehr/CtBookingScreen";
 import { EhrScreen } from "../systems/ehr/EhrScreen";
 import { LisScreen } from "../systems/lis/LisScreen";
+import { RisScreen } from "../systems/ris/RisScreen";
 
 // 電子カルテ・検体検査システムは実装済み。ステージビュー・通信モニタ・入口は後続のタスク（T064・T071・T072）で実装する。
 function Placeholder({ title }: { title: string }) {
@@ -23,7 +25,9 @@ export function AppRoutes() {
       <Route path="/stage" element={<StageView />} />
       <Route path="/control" element={<ControlPanel />} />
       <Route path="/ehr" element={<EhrScreen />} />
+      <Route path="/ehr/ct" element={<CtBookingScreen />} />
       <Route path="/lis" element={<LisScreen />} />
+      <Route path="/ris" element={<RisScreen />} />
       <Route path="/monitor" element={<MonitorScreen />} />
       <Route path="*" element={<Placeholder title="ページが見つかりません" />} />
     </Routes>

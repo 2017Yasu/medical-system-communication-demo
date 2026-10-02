@@ -6,12 +6,13 @@ import java.util.Map;
 public record TrafficRecord(
         long seq,
         String timestamp,
-        String kind, // "http" | "notification" | "demo"
+        String kind, // "http" | "notification" | "demo" | "server"（サーバー内の処理。specs/003 R-06）
         String client,
         Request request,
         Response response,
         Notification notification,
-        DemoEvent demoEvent) {
+        DemoEvent demoEvent,
+        ServerAction serverAction) {
 
     public record Request(String method, String url, Map<String, String> headers, String body, boolean truncated) {}
 
@@ -20,4 +21,8 @@ public record TrafficRecord(
     public record Notification(String subscriptionId, String targetClient, String resource) {}
 
     public record DemoEvent(String event, Object detail) {}
+
+    /** サーバー内の処理（仮押さえの期限切れ）。HTTP の要求ではないので request・response は無い。 */
+    public record ServerAction(
+            String action, String resource, Map<String, Object> before, Map<String, Object> after, int holdSeconds) {}
 }

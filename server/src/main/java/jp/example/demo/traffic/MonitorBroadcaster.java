@@ -34,19 +34,22 @@ public final class MonitorBroadcaster {
         send(Map.of("type", "traffic", "record", record));
     }
 
-    public void reset(String timestamp) {
-        send(Map.of("type", "demo.reset", "timestamp", timestamp));
+    /** 初期化の合図。初期化後のポリシー（既定値）を載せる：画面が取り直す必要を無くし、直後の demo.policy との前後が入れ替わらないようにする。 */
+    public void reset(String timestamp, DemoPolicy policy) {
+        send(Map.of("type", "demo.reset", "timestamp", timestamp, "policy", policyMap(policy)));
     }
 
     public void policy(DemoPolicy policy) {
-        send(Map.of(
-                "type",
-                "demo.policy",
-                "policy",
-                Map.of(
-                        "ifMatchRequired", policy.ifMatchRequired(),
-                        "taskTransitionCheck", policy.taskTransitionCheck(),
-                        "labSendsIfMatch", policy.labSendsIfMatch())));
+        send(Map.of("type", "demo.policy", "policy", policyMap(policy)));
+    }
+
+    private static Map<String, Object> policyMap(DemoPolicy policy) {
+        return Map.of(
+                "ifMatchRequired", policy.ifMatchRequired(),
+                "taskTransitionCheck", policy.taskTransitionCheck(),
+                "labSendsIfMatch", policy.labSendsIfMatch(),
+                "ehrUsesSlotHold", policy.ehrUsesSlotHold(),
+                "slotHoldSeconds", policy.slotHoldSeconds());
     }
 
     private void send(Object message) {

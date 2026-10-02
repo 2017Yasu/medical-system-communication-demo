@@ -1,0 +1,17 @@
+{
+  "resourceType": "Schedule",
+  "id": "ct-1",
+  "active": true,
+  "serviceType": [
+    {
+      "text": "CT 検査"
+    }
+  ],
+  "actor": [
+    {
+      "reference": "Device/ct-1",
+      "display": "CT-1 号機"
+    }
+  ],
+  "comment": "30 分枠"
+}

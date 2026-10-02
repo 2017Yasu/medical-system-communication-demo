@@ -12,6 +12,8 @@ export function findCause(records: TrafficRecord[], type: string, id: string, ve
   return [...records]
     .sort((a, b) => a.seq - b.seq)
     .find((r) => {
+      // サーバー内の処理（仮押さえの期限切れ）が作った版（specs/003 R-06）
+      if (r.kind === "server") return r.serverAction?.resource === marker;
       if (r.kind !== "http" || !r.request || !r.response || r.response.status >= 300) return false;
       if (r.request.method === "GET") return false;
       if (r.response.body.includes(marker)) return true;
@@ -19,7 +21,8 @@ export function findCause(records: TrafficRecord[], type: string, id: string, ve
     });
 }
 
-export type VersionField = "status" | "businessStatus" | "owner";
+/** 版の履歴で比べる項目。Task は status・businessStatus・owner、Slot は status・comment（押さえた人。表示用）。 */
+export type VersionField = "status" | "businessStatus" | "owner" | "comment";
 
 /** 版の履歴の 1 行分：1 つ前の版から変わった項目と、その版を作った通信の送信元（data-model.md §6）。 */
 export interface VersionDiff {
@@ -32,14 +35,16 @@ type Comparable = FhirResource & {
   status?: string;
   businessStatus?: { coding?: { code?: string }[] };
   owner?: { reference?: string };
+  comment?: string;
   meta?: { versionId?: string };
 };
 
-const FIELD_ORDER: VersionField[] = ["status", "businessStatus", "owner"];
+const FIELD_ORDER: VersionField[] = ["status", "businessStatus", "owner", "comment"];
 
 function valueOf(r: Comparable, field: VersionField): string {
   if (field === "status") return r.status ?? "";
   if (field === "businessStatus") return r.businessStatus?.coding?.[0]?.code ?? "";
+  if (field === "comment") return r.comment ?? "";
   return r.owner?.reference ?? "";
 }
 

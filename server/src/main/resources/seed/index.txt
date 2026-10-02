@@ -10,3 +10,10 @@ practitioner-tech-a.json
 practitionerrole-tech-a.json
 practitioner-tech-b.json
 practitionerrole-tech-b.json
+practitioner-dr-y.json
+practitionerrole-dr-y.json
+organization-rad-dept.json
+device-ct-1.json
+schedule-ct-1.json
+patient-demo-jiro.json
+patient-demo-sakurako.json

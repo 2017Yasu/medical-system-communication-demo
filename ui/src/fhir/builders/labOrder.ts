@@ -21,6 +21,8 @@ export type Interpretation = "H" | "L" | "N";
 export const ORDERING_DOCTOR = "Practitioner/dr-x";
 export const NURSE = "Practitioner/ns-d";
 export const LAB_DEPT = "Organization/lab-dept";
+/** ServiceRequest.category（検体検査）のコード。画像検査（CT）の依頼と区別するための検索に使う（specs/003 R-08）。 */
+export const LAB_CATEGORY_CODE = master.codings.serviceRequestCategory.code;
 
 const iso = (d: Date) => d.toISOString();
 

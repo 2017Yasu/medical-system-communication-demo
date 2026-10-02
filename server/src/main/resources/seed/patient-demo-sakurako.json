@@ -1,0 +1,27 @@
+{
+  "resourceType": "Patient",
+  "id": "demo-sakurako",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Patient"
+    ]
+  },
+  "identifier": [
+    {
+      "system": "https://demo.example.jp/fhir/sid/patient-number",
+      "value": "00000004"
+    }
+  ],
+  "name": [
+    {
+      "use": "official",
+      "text": "デモ 桜子",
+      "family": "デモ",
+      "given": [
+        "桜子"
+      ]
+    }
+  ],
+  "gender": "female",
+  "birthDate": "1990-03-08"
+}

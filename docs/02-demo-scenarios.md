@@ -6,7 +6,7 @@
 |---|---|---|---|---|
 | S1 | P1 | 検体検査（オーダー → 受付 → 実施 → 結果返却） | 「依頼」と「作業の進み具合」は別に管理されている | Transaction Bundle, Task PATCH, Subscription |
 | S2 | P1 | 排他制御①：2 人の技師が同じ依頼を同時に受付 | 仕組みが無いと後から操作した人の内容で上書きされる | ETag, If-Match, 412 |
-| S3 | P2 | 放射線：CT 検査の予約枠の取り合い | 予約枠は「仮押さえ → 確定」で二重予約を防ぐ | Slot, Appointment, If-None-Exist, Transaction |
+| S3 | P2 | 放射線：CT 検査の予約枠の取り合い | 予約枠は「仮押さえ → 確定」で二重予約を防ぐ | Slot, Appointment, If-Match, Transaction |
 | S4 | P2 | 処方調剤（処方 → 調剤 → 払出） | 部門によって「依頼」のリソースは異なる | MedicationRequest, Task, MedicationDispense |
 | S5 | P3 | Message Bundle による連携との比較 | HL7 v2 の電文との対応関係、移行の考え方 | MessageHeader, `$process-message` |
 
@@ -19,12 +19,13 @@ S2 で S1 と同じ場面を使って排他制御を見せられる。
 
 | 種別 | 名称（案） | FHIR リソース |
 |---|---|---|
-| 患者 | デモ 太郎（60 歳 男性）、デモ 花子 | Patient |
+| 患者 | デモ 太郎（60 歳 男性）、デモ 花子、デモ 次郎・デモ 桜子（S3 の初期データの予約の患者） | Patient |
 | 医師 | 医師 X（内科）、医師 Y（外科） | Practitioner / PractitionerRole |
 | 看護師 | 看護師 D（内科外来） | Practitioner / PractitionerRole |
 | 臨床検査技師 | 技師 A、技師 B | Practitioner / PractitionerRole |
 | 薬剤師 | 薬剤師 C | Practitioner / PractitionerRole |
 | 部門 | 検査部、放射線部、薬剤部 | Organization |
+| 機器 | CT-1 号機（放射線部。予約表と 30 分の予約枠を持つ） | Device / Schedule / Slot |
 | システム | 電子カルテ（HIS）、検体検査システム（LIS）、放射線情報システム（RIS）、薬剤部門システム | 画面（ブラウザ）。FHIR 上は Device または MessageHeader.source で表現 |
 
 ---
@@ -137,32 +138,55 @@ S1 のステップ 4（検体受付）を、技師 A と技師 B が**ほぼ同�
 ## S3. 放射線：CT 検査予約枠の取り合い（P2）
 
 医師 X（外来 1 診）と医師 Y（外来 2 診）が、同じ CT 枠（明日 10:00）に**同時に**予約を入れようとする。
+医師 X はデモ 太郎、医師 Y はデモ 花子の予約を入れる。目安の所要時間は解説込み 10 分（D-32。30 分版は S1 + S2 + S3）。
+
+S2 と同じく**ステージビューを使わず**、医師 X・医師 Y の電子カルテ、放射線部門システム、通信モニタ、デモ制御パネルを
+別ウィンドウで並べ、[06-demo-procedures.md](06-demo-procedures.md) に従って手で操作する（D-33）。
+準備はデモ制御パネルの「S3-x の準備」ボタンで行い、電子カルテの予約方式（仮押さえを使う / Appointment を直接作る）もここで切り替える（D-36）。
 
 ### 追加リソース
 
-- Schedule（CT-1 号機）、Slot（30 分枠、`free`）
+- Schedule（CT-1 号機）、Slot（30 分枠、`free`。初期化した時点の翌日 9:00〜12:00 の 6 枠を生成し、一部は予約済み。D-39）
 - ServiceRequest（category: imaging）、Appointment、Task（放射線部宛て）
 
-### S3-1. NG パターン：Appointment を直接 POST → 二重予約
+### 放射線部門システムの範囲
+
+予約枠カレンダーと、通知で届く予約・Task の一覧の表示まで（D-34）。受付・撮影・読影の操作は作らない。
+
+### S3-1. NG パターン：枠を確認せずに Appointment を作る → 二重予約
+
+電子カルテの予約方式を「直接予約する」にする。確定の Transaction から Slot の更新を除いたもの（Appointment + ServiceRequest + Task の POST）を送る。
 
 | 時刻 | 医師 X | 医師 Y | 結果 |
 |---|---|---|---|
-| T1 | `POST /Appointment`（slot = Slot/A）→ `201` | | 予約 1 件 |
-| T2 | | `POST /Appointment`（slot = Slot/A）→ `201` | **予約 2 件（二重予約成立）** |
+| T1 | `POST /`（Transaction：Appointment（slot = Slot/A）+ ServiceRequest + Task）→ `200` | | 予約 1 件。Slot/A は `free` のまま |
+| T2 | | `POST /`（同上、slot = Slot/A）→ `200` | **予約 2 件（二重予約成立）**。Slot/A は `free` のまま |
 
 - POST には If-Match が使えず、Slot 自体は更新していないので ETag では検知できない。
 - 「ETag は 1 つのリソースの版を守る仕組みであり、数に限りがある枠の取り合いは別に設計が必要」と解説する。
 
-### S3-2. 推奨パターン：仮押さえ → 確定 → タイムアウト
+### S3-2. 推奨パターン：仮押さえ → 確定（後発は 412）
 
 | # | 段階 | 通信 | 状態 |
 |---|---|---|---|
-| 1 | 仮押さえ | `PUT /Slot/A` + `If-Match`（status = `busy-tentative`） | 先に到達した側だけ成功、後発は `412` |
-| 2 | 確定 | `POST /`（Transaction：`PUT Slot/A`（`busy`、`ifMatch`）+ `POST Appointment`（`ifNoneExist: Appointment?slot=Slot/A&status=booked`）+ ServiceRequest + Task） | Slot: `busy`、Appointment: `booked` |
-| 3 | タイムアウト | サーバー内のジョブ | 仮押さえのまま一定時間経過した Slot を `free` に戻す |
+| 1 | 仮押さえ | `PUT /Slot/A` + `If-Match`（status = `busy-tentative`、comment = 「仮押さえ：医師 X」） | 先に到達した側だけ成功、後発は `412` |
+| 2 | 確定 | `POST /`（Transaction：`PUT Slot/A`（`busy`、`ifMatch`）+ `POST Appointment` + ServiceRequest + Task） | Slot: `busy`、Appointment: `booked` |
 
 - 後発の医師の画面には「この枠は他の利用者が予約中です」と表示し、別の枠を選ぶ画面へ誘導する（自動リトライはしない）。
-- タイムアウトはデモでは **30 秒**程度に短縮し、仮押さえを放置すると枠が戻る様子を見せる。
+- 押さえた人は `Slot.comment` に表示用として書く。確定できるかどうかは版だけで判定する（D-35）。
+- 二重予約は Slot の版の確認（`ifMatch`）だけで防ぐ。If-None-Exist は使わない（D-40）。If-None-Exist は「一致するものがあれば作らずに既存を返す（成功）」仕組みで、
+  同じものを二重に作らないためのものであり、取り合いを拒否する仕組みではないことを解説で触れる。
+
+### S3-3. 仮押さえの期限切れ → 確定は Transaction 全体が 412
+
+| # | 段階 | 通信 | 状態 |
+|---|---|---|---|
+| 1 | 仮押さえ | S3-2 の 1 と同じ | Slot: `busy-tentative` |
+| 2 | タイムアウト | サーバー内の処理（通信モニタに送信元「FHIR サーバー（仮押さえの期限切れ）」として表示。D-37） | 仮押さえのまま一定時間経過した Slot を `free` に戻す（版が上がる） |
+| 3 | 確定 | S3-2 の 2 と同じ Transaction | Slot の `ifMatch` が合わず `412`。Appointment・ServiceRequest・Task も**作られない** |
+
+- タイムアウトはデモでは **30 秒**程度に短縮し（D-17。デモ制御パネルで変更可）、仮押さえを放置すると枠が戻る様子を見せる。
+- 「Transaction は全部成功するか、全部取り消されるか」を見せる場面でもある。
 
 ### 拡張案（P3）
 
@@ -212,5 +236,5 @@ S1 のステップ 4（検体受付）を、技師 A と技師 B が**ほぼ同�
 | 通信モニタ | 通信の見える化 | システム間のシーケンス図（アニメーション）、リクエスト/レスポンス詳細（JSON）、リソースの版履歴 |
 | デモ制御パネル | 進行と設定 | シナリオ選択、ステップ送り/戻し、初期化、ポリシー切替（If-Match 必須、状態遷移チェック）、タイムアウト秒数 |
 
-- **ステージビュー**：講演用に、電子カルテ・部門システム・通信モニタを 1 画面に並べた 3 列のレイアウト。講演はこの 1 画面だけで行う（D-26）。ただし S2 はステージビューを使わず、個別ウィンドウを並べて手順書（[06-demo-procedures.md](06-demo-procedures.md)）に従って操作する（D-29）。
-- **個別ウィンドウ**：各画面を別タブ・別ウィンドウで開くこともできる（自習・展示で外部モニタがある場合、S2 の実演など）。
+- **ステージビュー**：講演用に、電子カルテ・部門システム・通信モニタを 1 画面に並べた 3 列のレイアウト。講演はこの 1 画面だけで行う（D-26）。ただし S2・S3 はステージビューを使わず、個別ウィンドウを並べて手順書（[06-demo-procedures.md](06-demo-procedures.md)）に従って操作する（D-29、D-33）。
+- **個別ウィンドウ**：各画面を別タブ・別ウィンドウで開くこともできる（自習・展示で外部モニタがある場合、S2・S3 の実演など）。

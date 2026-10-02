@@ -141,4 +141,25 @@ class JpPackageConsistencyTest {
             node.forEach(child -> verify(child, problems, verified));
         }
     }
+
+    @Test
+    void ctModalityUsedByS3IsInTheRadiologyModalityValueSet() throws IOException {
+        JsonNode master = JSON.readTree(masterFile.toFile());
+        JsonNode ct = master.path("codings").path("modalityCT");
+        Path core = Path.of(System.getenv("JP_FHIR_PACKAGE_DIR") != null && !System.getenv("JP_FHIR_PACKAGE_DIR").isBlank()
+                ? System.getenv("JP_FHIR_PACKAGE_DIR")
+                : "../.cache/fhir-packages");
+        Path vs = core.resolve("jpfhir-terminology#2.2609.0/package/ValueSet-jp-radiologymodality-vs.json");
+        Assumptions.assumeTrue(Files.exists(vs), "JP_RadiologyModality_VS がありません");
+        boolean found = false;
+        for (JsonNode include : JSON.readTree(vs.toFile()).path("compose").path("include")) {
+            if (!ct.path("system").asText().equals(include.path("system").asText())) {
+                continue;
+            }
+            for (JsonNode concept : include.path("concept")) {
+                found |= ct.path("code").asText().equals(concept.path("code").asText());
+            }
+        }
+        assertThat(found).as("DCM#CT が JP_RadiologyModality_VS に含まれること").isTrue();
+    }
 }

@@ -68,6 +68,7 @@ public final class TrafficCaptureFilter implements Filter {
                     new TrafficRecord.Response(
                             response.getStatus(), responseHeaders(response), resBody.text, ms, resBody.truncated),
                     null,
+                    null,
                     null));
         }
     }

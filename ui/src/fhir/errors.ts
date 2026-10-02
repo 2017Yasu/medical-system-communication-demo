@@ -1,5 +1,6 @@
 // エラーの表示（contracts/ui-screens.md「エラーの表示」、FR-032）。
 // HTTP のステータスだけでなく、業務上の意味を日本語で示す。
+import { holderName } from "./labels";
 
 export interface ErrorInput {
   /** HTTP ステータス。ネットワークに接続できない場合は network: true。 */
@@ -79,4 +80,29 @@ export function acceptConflictError(latest: { status?: string; owner?: { referen
     return build("conflict", `この依頼は既に ${name} が受付済みです`, undefined, httpLabel(412));
   }
   return toDisplayError({ status: 412 }, "受付");
+}
+
+/**
+ * 仮押さえの 412 のときの表示。最新の枠（取り直した結果）から、誰が仮押さえ中か・予約済みかを示す（specs/003 R-09）。
+ * 名前は Slot.comment（表示用）から取る。判定には使わない（D-35）。
+ */
+export function slotHoldConflictError(latest: { status?: string; comment?: string }): DisplayError {
+  if (latest.status === "busy-tentative") {
+    const name = holderName(latest.comment);
+    return build(
+      "conflict",
+      name ? `この枠は ${name} が仮押さえ中です。別の枠を選んでください` : "この枠は他の利用者が仮押さえ中です。別の枠を選んでください",
+      undefined,
+      httpLabel(412),
+    );
+  }
+  if (latest.status === "busy") {
+    return build("conflict", "この枠は既に予約済みです。別の枠を選んでください", undefined, httpLabel(412));
+  }
+  return toDisplayError({ status: 412 }, "仮押さえ");
+}
+
+/** 確定の一括送信が 412 のとき：自分の仮押さえの後に枠が変わった（期限切れ、またはその後の他の医師の更新）。 */
+export function slotHoldExpiredError(): DisplayError {
+  return build("conflict", "仮押さえの期限が切れました。枠を選び直してください", undefined, httpLabel(412));
 }
