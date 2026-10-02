@@ -161,6 +161,11 @@ class TrafficMonitorIT {
         demo.reset();
         String reset = monitor.await(m -> m.contains("\"demo.reset\""), 3000);
         assertThat(reset).isNotNull();
+        // 初期化後のポリシー（既定値）を載せる：画面が取り直さずに済み、直後の demo.policy と前後が入れ替わらない
+        JsonNode policy = DemoServerExtension.JSON.readTree(reset).get("policy");
+        assertThat(policy.get("ifMatchRequired").asBoolean()).isTrue();
+        assertThat(policy.get("ehrUsesSlotHold").asBoolean()).isTrue();
+        assertThat(policy.get("slotHoldSeconds").asInt()).isEqualTo(30);
         JsonNode logged = logRecords();
         assertThat(logged).hasSize(1);
         assertThat(logged.get(0).get("kind").asText()).isEqualTo("demo");
@@ -224,5 +229,98 @@ class TrafficMonitorIT {
         assertThat(policy.get("ifMatchRequired").asBoolean()).isTrue();
         assertThat(policy.get("taskTransitionCheck").asBoolean()).isTrue();
         assertThat(policy.get("labSendsIfMatch").asBoolean()).isTrue();
+    }
+
+    // ---- S3（specs/003 contracts/demo-control-api.md）----
+
+    private static com.fasterxml.jackson.databind.JsonNode getPolicy() throws Exception {
+        return DemoServerExtension.JSON.readTree(demo.raw("GET", "/demo/policy", Map.of(), null).body());
+    }
+
+    @Test
+    void slotPolicyFieldsHaveDefaultsAndAreUpdatedPartially() throws Exception {
+        JsonNode policy = getPolicy();
+        assertThat(policy.get("ehrUsesSlotHold").asBoolean()).isTrue();
+        assertThat(policy.get("slotHoldSeconds").asInt()).isEqualTo(30);
+
+        JsonNode result = putPolicy("{\"ehrUsesSlotHold\":false}");
+        assertThat(result.get("ehrUsesSlotHold").asBoolean()).isFalse();
+        assertThat(result.get("slotHoldSeconds").asInt()).isEqualTo(30);
+        assertThat(result.get("labSendsIfMatch").asBoolean()).isTrue();
+
+        assertThat(putPolicy("{\"slotHoldSeconds\":60}").get("slotHoldSeconds").asInt()).isEqualTo(60);
+        assertThat(getPolicy().get("ehrUsesSlotHold").asBoolean()).isFalse();
+    }
+
+    @Test
+    void invalidSlotHoldSecondsIsRejectedWith400AndChangesNothing() throws Exception {
+        for (String bad : List.of("0", "301", "1.5", "\"30\"", "-1", "null")) {
+            var res = demo.raw("PUT", "/demo/policy", Map.of("Content-Type", "application/json"),
+                    "{\"ehrUsesSlotHold\":false,\"slotHoldSeconds\":" + bad + "}");
+            if ("null".equals(bad)) {
+                // null は「指定なし」と同じ扱い（変更しない）。ほかの項目は反映される
+                assertThat(res.statusCode()).isEqualTo(200);
+                demo.reset();
+                continue;
+            }
+            assertThat(res.statusCode()).as(bad).isEqualTo(400);
+            assertThat(res.body()).contains("slotHoldSeconds は 1〜300 の整数で指定してください");
+            JsonNode policy = getPolicy();
+            assertThat(policy.get("ehrUsesSlotHold").asBoolean()).as("変更されない: " + bad).isTrue();
+            assertThat(policy.get("slotHoldSeconds").asInt()).isEqualTo(30);
+        }
+        assertThat(putPolicy("{\"slotHoldSeconds\":1}").get("slotHoldSeconds").asInt()).isEqualTo(1);
+        assertThat(putPolicy("{\"slotHoldSeconds\":300}").get("slotHoldSeconds").asInt()).isEqualTo(300);
+    }
+
+    @Test
+    void slotPolicyIsBroadcastRecordedAndRestoredByReset() throws Exception {
+        WsClient monitor = demo.connect("/ws/monitor");
+        putPolicy("{\"ehrUsesSlotHold\":false,\"slotHoldSeconds\":45}");
+        String msg = monitor.await(m -> m.contains("\"demo.policy\""), 3000);
+        assertThat(msg).isNotNull();
+        JsonNode broadcast = DemoServerExtension.JSON.readTree(msg).get("policy");
+        assertThat(broadcast.get("ehrUsesSlotHold").asBoolean()).isFalse();
+        assertThat(broadcast.get("slotHoldSeconds").asInt()).isEqualTo(45);
+        JsonNode detail = logRecords().get(logRecords().size() - 1).get("demoEvent").get("detail");
+        assertThat(detail.get("ehrUsesSlotHold").asBoolean()).isFalse();
+        assertThat(detail.get("slotHoldSeconds").asInt()).isEqualTo(45);
+        assertThat(detail.has("labSendsIfMatch")).isTrue();
+
+        demo.reset();
+        JsonNode policy = getPolicy();
+        assertThat(policy.get("ehrUsesSlotHold").asBoolean()).isTrue();
+        assertThat(policy.get("slotHoldSeconds").asInt()).isEqualTo(30);
+    }
+
+    @Test
+    void slotHoldExpiryIsDeliveredToTheMonitorAsAServerAction() throws Exception {
+        putPolicy("{\"slotHoldSeconds\":1}");
+        WsClient monitor = demo.connect("/ws/monitor");
+        String slot = "{\"resourceType\":\"Slot\",\"id\":\"ct1-1000\",\"schedule\":{\"reference\":\"Schedule/ct-1\"},"
+                + "\"status\":\"busy-tentative\",\"start\":\"2026-10-04T10:00:00+09:00\",\"end\":\"2026-10-04T10:30:00+09:00\","
+                + "\"comment\":\"仮押さえ：医師 X\"}";
+        var held = demo.fhirRaw("PUT", "/Slot/ct1-1000", Map.of("Content-Type", "application/fhir+json", "If-Match", "W/\"1\"", "X-Demo-Client", "ehr-doctor"), slot);
+        assertThat(held.statusCode()).isEqualTo(200);
+
+        String msg = monitor.await(m -> m.contains("server-slot-expiry"), 4000);
+        assertThat(msg).as("期限切れの記録が配信される").isNotNull();
+        JsonNode record = DemoServerExtension.JSON.readTree(msg).get("record");
+        assertThat(record.get("kind").asText()).isEqualTo("server");
+        assertThat(record.get("request").isNull()).isTrue();
+        assertThat(record.get("response").isNull()).isTrue();
+        JsonNode action = record.get("serverAction");
+        assertThat(action.get("action").asText()).isEqualTo("slot-hold-expired");
+        assertThat(action.get("resource").asText()).isEqualTo("Slot/ct1-1000/_history/3");
+        assertThat(action.get("before").get("status").asText()).isEqualTo("busy-tentative");
+        assertThat(action.get("after").get("status").asText()).isEqualTo("free");
+
+        // 既存の種別の記録では serverAction は null
+        for (JsonNode r : logRecords()) {
+            if (!"server".equals(r.get("kind").asText())) {
+                assertThat(r.has("serverAction")).as("kind=%s", r.get("kind").asText()).isTrue();
+                assertThat(r.get("serverAction").isNull()).isTrue();
+            }
+        }
     }
 }

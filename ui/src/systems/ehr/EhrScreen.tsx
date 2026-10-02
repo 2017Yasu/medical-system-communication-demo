@@ -15,6 +15,7 @@ export function EhrScreen({ role, embedded = false }: { role?: EhrRole; embedded
           <h1>電子カルテ（{current === "doctor" ? "医師 X" : "看護師 D"}）</h1>
           <Link to="/ehr?role=doctor">医師</Link>
           <Link to="/ehr?role=nurse">看護師</Link>
+          <Link to="/ehr/ct?doctor=dr-x">CT 予約</Link>
           <span className="spacer" />
           <Link to="/">入口へ</Link>
         </header>

@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FhirResource, Task } from "fhir/r4";
 import { FhirClient, type Versioned } from "../fhir/client";
-import { businessStatusCode, businessStatusLabel, statusLabel, type StatusKind } from "../fhir/labels";
+import { businessStatusCode, businessStatusLabel, holderName, statusLabel, type StatusKind } from "../fhir/labels";
 import type { TrafficRecord } from "../realtime/types";
-import { diffVersions, findCause } from "./history";
+import { diffVersions, findCause, type VersionField } from "./history";
 import { clientName, resourceRefsIn } from "./sequenceModel";
 
 const KIND: Record<string, StatusKind> = {
   Task: "task",
   ServiceRequest: "serviceRequest",
   DiagnosticReport: "diagnosticReport",
+  Slot: "slot",
+  Appointment: "appointment",
 };
 
 /** リソースの版の履歴（FR-025）：版ごとの状態・担当者・更新日時と、その版を作った通信へのリンク。 */
@@ -71,7 +73,7 @@ export function HistoryView({
               <tr>
                 <th>版</th>
                 <th>状態</th>
-                <th>担当</th>
+                <th>{type === "Slot" ? "押さえた人" : "担当"}</th>
                 <th>更新日時</th>
                 <th>この版を作った通信</th>
               </tr>
@@ -82,11 +84,12 @@ export function HistoryView({
                 const vid = res.meta?.versionId ?? "";
                 const task = type === "Task" ? (v.resource as Task) : undefined;
                 const biz = businessStatusCode(task?.businessStatus);
-                const owner = task?.owner?.reference ?? "—";
+                const slot = type === "Slot" ? (v.resource as { comment?: string }) : undefined;
+                const owner = slot ? (holderName(slot.comment) ?? "—") : (task?.owner?.reference ?? "—");
                 const cause = findCause(records, type, id, vid);
                 const diff = diffs.get(vid);
-                const changed = (f: "status" | "businessStatus" | "owner") => diff?.changed.includes(f) ?? false;
-                const mark = (f: "status" | "businessStatus" | "owner") => ({
+                const changed = (f: VersionField) => diff?.changed.includes(f) ?? false;
+                const mark = (f: VersionField) => ({
                   "data-testid": `history-changed-${vid}-${f}`,
                   style: { background: "var(--c-highlight)", fontWeight: 700 },
                 });
@@ -103,7 +106,7 @@ export function HistoryView({
                         </>
                       )}
                     </td>
-                    <td {...(changed("owner") ? mark("owner") : {})}>{owner}</td>
+                    <td {...(slot ? (changed("comment") ? mark("comment") : {}) : changed("owner") ? mark("owner") : {})}>{owner}</td>
                     <td>{res.meta?.lastUpdated ? new Date(res.meta.lastUpdated).toLocaleTimeString("ja-JP") : ""}</td>
                     <td>
                       {cause ? (

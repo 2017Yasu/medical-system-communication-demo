@@ -15,7 +15,9 @@ S2 の [contracts/websocket.md](../../002-concurrent-acceptance/contracts/websoc
 - 受け取る画面：
   - デモ制御パネル：予約方式・期限の表示を更新する。
   - 電子カルテの CT 予約画面（医師 X・医師 Y）：次に枠を選んだときの予約方式と、見出しの「予約方式」「期限」の表示を更新する。予約欄を開いている間は、その予約欄の方式を変えない（data-model.md §7 `mode`）。
-- `demo.reset` を受けた画面は、ポリシーが既定値に戻ったものとして扱う（S2 のまま。`slotHoldSeconds` の既定値は環境変数で変わりうるため、`GET /demo/policy` で取り直す）。
+- `demo.reset` の本文に、初期化後のポリシー（既定値）を載せる：`{ "type": "demo.reset", "timestamp": "…", "policy": { …5 項目… } }`。
+  `slotHoldSeconds` の既定値は環境変数で変わりうるため、画面は本文の値を使う（`policy` が無いときは UI の既定値）。
+  取り直し（`GET /demo/policy`）を使わないのは、準備ボタンの「初期化 → 設定の切り替え」の途中で取り直しの応答が古い値のまま後から届き、設定を上書きするのを防ぐため。
 
 ## TrafficRecord — `kind = "server"` を追加（research.md R-06、data-model.md §6）
 

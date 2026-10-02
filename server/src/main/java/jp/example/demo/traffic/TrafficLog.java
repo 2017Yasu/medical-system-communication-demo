@@ -62,11 +62,17 @@ public final class TrafficLog {
                 null,
                 null,
                 new TrafficRecord.Notification(subscriptionId, targetClient, resource),
+                null,
                 null);
     }
 
     public TrafficRecord demoEvent(String event, Object detail) {
         return new TrafficRecord(
-                reserveSeq(), now(), "demo", "demo", null, null, null, new TrafficRecord.DemoEvent(event, detail));
+                reserveSeq(), now(), "demo", "demo", null, null, null, new TrafficRecord.DemoEvent(event, detail), null);
+    }
+
+    /** サーバー内の処理の記録。seq は書き込みの前に {@link #reserveSeq()} で採番したもの（コミットで送られる通知より前になる）。 */
+    public TrafficRecord serverAction(long seq, String client, TrafficRecord.ServerAction action) {
+        return new TrafficRecord(seq, now(), "server", client, null, null, null, null, action);
     }
 }

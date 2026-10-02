@@ -29,6 +29,9 @@ export function Launcher() {
         <ul>
           <li><Link to="/ehr?role=doctor">電子カルテ（医師 X）</Link></li>
           <li><Link to="/ehr?role=nurse">電子カルテ（看護師 D）</Link></li>
+          <li><Link to="/ehr/ct?doctor=dr-x">電子カルテ CT 予約（医師 X）</Link></li>
+          <li><Link to="/ehr/ct?doctor=dr-y">電子カルテ CT 予約（医師 Y）</Link></li>
+          <li><Link to="/ris">放射線部門システム</Link></li>
           <li><Link to="/lis?tech=tech-a">検体検査システム（技師 A）</Link></li>
           <li><Link to="/lis?tech=tech-b">検体検査システム（技師 B）</Link></li>
           <li><Link to="/monitor">通信モニタ</Link></li>
@@ -41,6 +44,17 @@ export function Launcher() {
           <li><Link to="/control">デモ制御パネル</Link></li>
           <li><Link to="/lis?tech=tech-a">検体検査システム（技師 A）</Link></li>
           <li><Link to="/lis?tech=tech-b">検体検査システム（技師 B）</Link></li>
+          <li><Link to="/monitor">通信モニタ</Link></li>
+        </ul>
+        <p className="muted">操作の手順は docs/06-demo-procedures.md を参照してください。</p>
+      </section>
+      <section className="panel" aria-label="S3 予約枠の取り合いで開くウィンドウ">
+        <h2>S3 予約枠の取り合いで開くウィンドウ</h2>
+        <ul>
+          <li><Link to="/control">デモ制御パネル</Link></li>
+          <li><Link to="/ehr/ct?doctor=dr-x">電子カルテ CT 予約（医師 X）</Link></li>
+          <li><Link to="/ehr/ct?doctor=dr-y">電子カルテ CT 予約（医師 Y）</Link></li>
+          <li><Link to="/ris">放射線部門システム</Link></li>
           <li><Link to="/monitor">通信モニタ</Link></li>
         </ul>
         <p className="muted">操作の手順は docs/06-demo-procedures.md を参照してください。</p>

@@ -13,7 +13,7 @@ import jp.example.demo.fhir.rules.IfMatchRule;
 import jp.example.demo.fhir.rules.TaskTransitionRule;
 import jp.example.demo.fhir.system.TransactionProcessor;
 import jp.example.demo.store.InMemoryRepository;
-import org.hl7.fhir.r4.model.Appointment;
+import org.hl7.fhir.r4.model.Schedule;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.Bundle.BundleType;
 import org.hl7.fhir.r4.model.Bundle.HTTPVerb;
@@ -221,7 +221,7 @@ class TransactionProcessorTest {
         post(b, "urn:uuid:p", new Patient());
         assertThatThrownBy(() -> processor.process(b)).isInstanceOf(InvalidRequestException.class);
         Bundle b2 = bundle();
-        post(b2, "urn:uuid:a", new Appointment());
+        post(b2, "urn:uuid:a", new Schedule()); // Slot・Appointment は S3 で書き込み可能（Schedule・Device は読み取り専用）
         assertThatThrownBy(() -> processor.process(b2)).isInstanceOf(InvalidRequestException.class);
     }
 

@@ -1,0 +1,27 @@
+{
+  "resourceType": "Patient",
+  "id": "demo-jiro",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Patient"
+    ]
+  },
+  "identifier": [
+    {
+      "system": "https://demo.example.jp/fhir/sid/patient-number",
+      "value": "00000003"
+    }
+  ],
+  "name": [
+    {
+      "use": "official",
+      "text": "デモ 次郎",
+      "family": "デモ",
+      "given": [
+        "次郎"
+      ]
+    }
+  ],
+  "gender": "male",
+  "birthDate": "1972-11-20"
+}

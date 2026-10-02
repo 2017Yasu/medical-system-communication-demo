@@ -12,6 +12,7 @@ import {
   buildRejectPatch,
   buildRerunPatch,
   buildStartPatch,
+  LAB_CATEGORY_CODE,
   labItem,
   nextOrderNumber,
   ORDERING_DOCTOR,
@@ -26,7 +27,7 @@ const refOf = (reference?: string) => reference?.split("/")[1] ?? "";
 
 /** 医師 X が出した最新の依頼と、その作業。無ければ null。 */
 export async function fetchLatestOrder(client: FhirClient): Promise<CurrentOrder | null> {
-  const srs = await client.search<ServiceRequest>("ServiceRequest", { requester: ORDERING_DOCTOR });
+  const srs = await client.search<ServiceRequest>("ServiceRequest", { requester: ORDERING_DOCTOR, category: LAB_CATEGORY_CODE });
   const sr = srs[0];
   if (!sr) return null;
   const tasks = await client.search<Task>("Task", { focus: `ServiceRequest/${sr.resource.id}` });
@@ -34,7 +35,7 @@ export async function fetchLatestOrder(client: FhirClient): Promise<CurrentOrder
 }
 
 export async function placeOrder(client: FhirClient, patientId: string, sets: string[], now = new Date()): Promise<void> {
-  const existing = await client.search<ServiceRequest>("ServiceRequest", { requester: ORDERING_DOCTOR });
+  const existing = await client.search<ServiceRequest>("ServiceRequest", { requester: ORDERING_DOCTOR, category: LAB_CATEGORY_CODE });
   await client.transaction(
     buildOrderTransaction({ patientId, sets, orderNumber: nextOrderNumber(now, existing.length), now }),
     "検査の依頼",

@@ -92,6 +92,11 @@ public class DemoServerExtension implements BeforeAllCallback, AfterAllCallback,
         return JSON.readTree(raw("PUT", "/demo/policy", Map.of("Content-Type", "application/json"), body.toString()).body());
     }
 
+    /** ポリシーを部分更新する（任意の項目。応答をそのまま返す）。 */
+    public HttpResponse<String> putPolicy(Map<String, Object> partial) throws Exception {
+        return raw("PUT", "/demo/policy", Map.of("Content-Type", "application/json"), JSON.writeValueAsString(partial));
+    }
+
     /** `X-Demo-Client` を付ける HAPI Generic Client（R4）。 */
     public IGenericClient fhir(String client) {
         Fhir.CTX.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);

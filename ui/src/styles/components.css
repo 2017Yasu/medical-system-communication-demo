@@ -39,3 +39,7 @@ select, input[type="number"], input[type="text"] { font: inherit; padding: var(-
 @media (prefers-reduced-motion: reduce) {
   .row-changed > td { animation: none; background: var(--c-highlight); }
 }
+
+/* 同じ枠に予約が 2 件ある行（S3-1。放射線部門システムが一覧から見つけた表示の強調。サーバーの判定ではない） */
+tr.double-booked > td { background: #fff8e1; }
+.double-booking-note { margin-top: var(--sp-1); padding: 2px var(--sp-2); border-left: 4px solid var(--c-warn); color: var(--c-warn); font-weight: 700; font-size: var(--fs-small); }

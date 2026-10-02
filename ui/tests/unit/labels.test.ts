@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { businessStatusLabel, formatStatus, statusLabel } from "../../src/fhir/labels";
+import {
+  businessStatusLabel,
+  formatSlotTime,
+  formatStatus,
+  holderName,
+  radBusinessStatusLabel,
+  statusLabel,
+} from "../../src/fhir/labels";
 
 // docs/04-design-rules.md「表示ラベル」の表
 describe("status labels", () => {
@@ -58,5 +65,38 @@ describe("businessStatus labels (data-model.md §3.3)", () => {
     expect(businessStatusLabel("rerun")).toBe("再検中");
     expect(businessStatusLabel("partial-reported")).toBe("一部報告済");
     expect(businessStatusLabel("reported")).toBe("報告済");
+  });
+});
+
+describe("S3 labels (specs/003)", () => {
+  it("radiology business status", () => {
+    expect(radBusinessStatusLabel("booked")).toBe("予約済み");
+    expect(radBusinessStatusLabel("unknown")).toBe("unknown");
+  });
+
+  it("slot and appointment status labels (docs/04)", () => {
+    expect(formatStatus("slot", "free")).toBe("空き free");
+    expect(formatStatus("slot", "busy-tentative")).toBe("仮押さえ中 busy-tentative");
+    expect(formatStatus("slot", "busy")).toBe("予約済み busy");
+    expect(formatStatus("appointment", "booked")).toBe("予約確定 booked");
+  });
+
+  it("formats slot times in Japan time regardless of the process time zone", () => {
+    const original = process.env.TZ;
+    for (const tz of ["UTC", "America/Los_Angeles", "Asia/Tokyo"]) {
+      process.env.TZ = tz;
+      expect(formatSlotTime("2026-10-03T10:00:00+09:00", "2026-10-03T10:30:00+09:00")).toBe("10/3（土）10:00–10:30");
+      // UTC では前日になる時刻でも、日本時間の日付で表示する
+      expect(formatSlotTime("2026-10-04T09:00:00+09:00", "2026-10-04T09:30:00+09:00")).toBe("10/4（日）09:00–09:30");
+    }
+    process.env.TZ = original;
+  });
+
+  it("takes the holder's name from the display-only comment (D-35)", () => {
+    expect(holderName("仮押さえ：医師 X")).toBe("医師 X");
+    expect(holderName("仮押さえ：医師 Y")).toBe("医師 Y");
+    expect(holderName(undefined)).toBeNull();
+    expect(holderName("")).toBeNull();
+    expect(holderName("別の備考")).toBeNull();
   });
 });

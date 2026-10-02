@@ -10,7 +10,7 @@
 | [03-architecture.md](03-architecture.md) | アーキテクチャと技術スタック（fhirstarters skeleton ベース） |
 | [04-design-rules.md](04-design-rules.md) | FHIR が規定せず実装側で決めるルール（状態遷移・排他制御・コード体系・表示ラベル） |
 | [05-decisions.md](05-decisions.md) | 決定事項・未決事項・技術検証項目 |
-| [06-demo-procedures.md](06-demo-procedures.md) | デモ手順書（画面上の案内を出さないシナリオ。S2 同時受付の操作手順） |
+| [06-demo-procedures.md](06-demo-procedures.md) | デモ手順書（画面上の案内を出さないシナリオ。S2 同時受付・S3 予約枠の取り合いの操作手順） |
 
 ## 参考資料
 

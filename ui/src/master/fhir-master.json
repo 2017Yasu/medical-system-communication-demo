@@ -1,5 +1,5 @@
 {
-  "_comment": "FHIR マスタ：プロファイル、検査項目（JLAC10・単位・基準値・既定値）、固定の coding。JLAC10 は JP Terminology 2.2609.0 で確認済み（specs/001-lab-order-workflow/research.md R-15）。サーバーのテスト JpPackageConsistencyTest が JP パッケージとの整合を確認する。",
+  "_comment": "FHIR マスタ：プロファイル、検査項目（JLAC10・単位・基準値・既定値）、固定の coding。JLAC10 は JP Terminology 2.2609.0 で確認済み（specs/001-lab-order-workflow/research.md R-15）。サーバーのテスト JpPackageConsistencyTest が JP パッケージとの整合を確認する。放射線（S3）の検査内容は JJ1017 が JP Terminology 2.2609.0 に含まれないためデモ用の独自コード（specs/003 D-39）。モダリティ DCM#CT は JP_RadiologyModality_VS に含まれる。",
   "profiles": {
     "Patient": "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Patient",
     "Practitioner": "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Practitioner",
@@ -16,11 +16,18 @@
     "labSet": "https://demo.example.jp/fhir/CodeSystem/lab-set",
     "orderCode": "https://demo.example.jp/fhir/CodeSystem/order-code",
     "businessStatus": "https://demo.example.jp/fhir/CodeSystem/lab-business-status",
-    "orderNumber": "https://demo.example.jp/fhir/sid/order-number"
+    "orderNumber": "https://demo.example.jp/fhir/sid/order-number",
+    "radiologyProcedure": "https://demo.example.jp/fhir/CodeSystem/radiology-procedure",
+    "radBusinessStatus": "https://demo.example.jp/fhir/CodeSystem/rad-business-status"
   },
   "labSets": [
     { "code": "CBC", "display": "血算", "items": ["WBC", "RBC", "Hb", "Ht", "PLT"] },
     { "code": "BIO", "display": "生化学", "items": ["AST", "ALT", "Cre"] }
+  ],
+  "radiologyProcedures": [
+    { "code": "CT-HEAD", "display": "頭部 CT（単純）" },
+    { "code": "CT-CHEST", "display": "胸部 CT（単純）" },
+    { "code": "CT-ABD-C", "display": "腹部 CT（造影）" }
   ],
   "labItems": [
     { "key": "WBC", "display": "白血球数", "coding": { "system": "http://medis.or.jp/CodeSystem/master-JLAC10-17digits", "code": "2A990000001930952" }, "unit": "10*3/uL", "unitDisplay": "10³/μL", "low": 3.3, "high": 8.6, "defaultValue": 9.8 },
@@ -42,7 +49,9 @@
     "taskCode": { "system": "http://hl7.org/fhir/CodeSystem/task-code", "code": "fulfill", "display": "Fulfill the focal request" },
     "interpretationHigh": { "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation", "code": "H", "display": "High" },
     "interpretationLow": { "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation", "code": "L", "display": "Low" },
-    "interpretationNormal": { "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation", "code": "N", "display": "Normal" }
+    "interpretationNormal": { "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation", "code": "N", "display": "Normal" },
+    "imagingCategory": { "system": "http://snomed.info/sct", "code": "363679005", "display": "Imaging" },
+    "modalityCT": { "system": "http://dicom.nema.org/resources/ontology/DCM", "code": "CT", "display": "Computed Tomography" }
   },
   "businessStatuses": [
     { "code": "not-collected", "display": "未採取" },
@@ -52,5 +61,8 @@
     { "code": "rerun", "display": "再検中" },
     { "code": "partial-reported", "display": "一部報告済" },
     { "code": "reported", "display": "報告済" }
+  ],
+  "radBusinessStatuses": [
+    { "code": "booked", "display": "予約済み" }
   ]
 }

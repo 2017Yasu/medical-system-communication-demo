@@ -7,3 +7,5 @@ services:
       - "8080:8080"
     environment:
       PORT: "8080"
+      # 仮押さえの期限の既定値（秒、1〜300。S3）。未設定なら 30。デモ制御パネルからも変えられる
+      SLOT_HOLD_SECONDS: "30"

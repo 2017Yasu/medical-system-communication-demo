@@ -11,10 +11,31 @@ public final class DemoPolicy {
     public static final boolean DEFAULT_IF_MATCH_REQUIRED = true;
     public static final boolean DEFAULT_TASK_TRANSITION_CHECK = true;
     public static final boolean DEFAULT_LAB_SENDS_IF_MATCH = true;
+    public static final boolean DEFAULT_EHR_USES_SLOT_HOLD = true;
+    public static final int DEFAULT_SLOT_HOLD_SECONDS = 30;
+    public static final int MIN_SLOT_HOLD_SECONDS = 1;
+    public static final int MAX_SLOT_HOLD_SECONDS = 300;
 
     private volatile boolean ifMatchRequired = DEFAULT_IF_MATCH_REQUIRED;
     private volatile boolean taskTransitionCheck = DEFAULT_TASK_TRANSITION_CHECK;
     private volatile boolean labSendsIfMatch = DEFAULT_LAB_SENDS_IF_MATCH;
+    private volatile boolean ehrUsesSlotHold = DEFAULT_EHR_USES_SLOT_HOLD;
+    private volatile int slotHoldSeconds;
+    private final int defaultSlotHoldSeconds;
+
+    public DemoPolicy() {
+        this(DEFAULT_SLOT_HOLD_SECONDS);
+    }
+
+    /** @param defaultSlotHoldSeconds 仮押さえの期限の既定値（環境変数 SLOT_HOLD_SECONDS。範囲外は 30 にする） */
+    public DemoPolicy(int defaultSlotHoldSeconds) {
+        this.defaultSlotHoldSeconds = isValidSlotHoldSeconds(defaultSlotHoldSeconds) ? defaultSlotHoldSeconds : DEFAULT_SLOT_HOLD_SECONDS;
+        this.slotHoldSeconds = this.defaultSlotHoldSeconds;
+    }
+
+    public static boolean isValidSlotHoldSeconds(int seconds) {
+        return seconds >= MIN_SLOT_HOLD_SECONDS && seconds <= MAX_SLOT_HOLD_SECONDS;
+    }
 
     public boolean ifMatchRequired() {
         return ifMatchRequired;
@@ -26,6 +47,24 @@ public final class DemoPolicy {
 
     public boolean labSendsIfMatch() {
         return labSendsIfMatch;
+    }
+
+    /** 電子カルテの CT 予約画面が仮押さえを使うか。サーバーの判定には使わない（specs/003 research R-03、D-36）。 */
+    public boolean ehrUsesSlotHold() {
+        return ehrUsesSlotHold;
+    }
+
+    /** 仮押さえの期限（秒）。仮押さえを受け付けた時点の値で、その仮押さえの期限が決まる。 */
+    public int slotHoldSeconds() {
+        return slotHoldSeconds;
+    }
+
+    public void setEhrUsesSlotHold(boolean value) {
+        this.ehrUsesSlotHold = value;
+    }
+
+    public void setSlotHoldSeconds(int value) {
+        this.slotHoldSeconds = value;
     }
 
     public void setLabSendsIfMatch(boolean value) {
@@ -44,5 +83,7 @@ public final class DemoPolicy {
         this.ifMatchRequired = DEFAULT_IF_MATCH_REQUIRED;
         this.taskTransitionCheck = DEFAULT_TASK_TRANSITION_CHECK;
         this.labSendsIfMatch = DEFAULT_LAB_SENDS_IF_MATCH;
+        this.ehrUsesSlotHold = DEFAULT_EHR_USES_SLOT_HOLD;
+        this.slotHoldSeconds = defaultSlotHoldSeconds;
     }
 }

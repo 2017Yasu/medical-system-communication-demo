@@ -1,0 +1,28 @@
+{
+  "resourceType": "PractitionerRole",
+  "id": "dr-y",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_PractitionerRole"
+    ]
+  },
+  "active": true,
+  "practitioner": {
+    "reference": "Practitioner/dr-y"
+  },
+  "organization": {
+    "reference": "Organization/hospital"
+  },
+  "code": [
+    {
+      "coding": [
+        {
+          "system": "https://demo.example.jp/fhir/CodeSystem/staff-role",
+          "code": "doctor",
+          "display": "医師"
+        }
+      ],
+      "text": "医師"
+    }
+  ]
+}

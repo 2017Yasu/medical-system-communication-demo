@@ -8,7 +8,8 @@ import { ensureSubscription, openSubscriptionSocket, type SubscriptionSocket, ty
 
 export interface LiveDataOptions<T> {
   clientId: ClientId;
-  subscription: SubscriptionSpec;
+  /** 通知を受ける Subscription。複数のときは、どれかの ping で取り直す（放射線部門システム。specs/003 R-07）。 */
+  subscription: SubscriptionSpec | SubscriptionSpec[];
   /** 表示するデータの取得。通知のたびに呼ばれる。 */
   load: (client: FhirClient) => Promise<T>;
   /** 取得の依存（変わったら取り直す）。 */
@@ -40,55 +41,70 @@ export function useLiveData<T>(options: LiveDataOptions<T>): LiveData<T> {
     return toDisplayError({ network: true }, operationName);
   }, []);
 
-  const reload = useCallback(async () => {
-    try {
-      const value = await loadRef.current(client);
-      setData(value);
-      setErrorState(null);
-    } catch (e) {
-      setErrorState(toDisplay(e, "取得"));
-    } finally {
-      setLoading(false);
-    }
-  }, [client, toDisplay]);
+  /**
+   * 表示データの取得。keepError が true（通知による取り直し）のときは、成功しても表示中のエラーを消さない：
+   * 利用者の操作が失敗した直後に、相手の更新の通知で取り直しが走ると、読む前にエラーが消えてしまうため（specs/003 の同時の仮押さえで発見）。
+   */
+  const load = useCallback(
+    async (keepError: boolean) => {
+      try {
+        const value = await loadRef.current(client);
+        setData(value);
+        if (!keepError) setErrorState(null);
+      } catch (e) {
+        setErrorState(toDisplay(e, "取得"));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [client, toDisplay],
+  );
+  /** 画面が自分の操作の後に呼ぶ取り直し（成功すると、前の操作のエラーを消す）。 */
+  const reload = useCallback(() => load(false), [load]);
 
   const depsKey = JSON.stringify(options.deps ?? []);
   useEffect(() => {
     let disposed = false;
-    let socket: SubscriptionSocket | null = null;
+    const sockets = new Map<string, SubscriptionSocket>();
+    const specs = () => [subRef.current].flat();
 
-    const setup = async () => {
-      socket?.close();
-      socket = null;
+    /** Subscription 1 件ぶんの「登録 → bind」。bind が拒否されたら、その 1 件だけ登録し直す。 */
+    const setup = async (spec: SubscriptionSpec) => {
+      sockets.get(spec.id)?.close();
+      sockets.delete(spec.id);
       try {
-        await ensureSubscription(client, subRef.current);
+        await ensureSubscription(client, spec);
       } catch (e) {
         if (!disposed) setErrorState(toDisplay(e, "通知の登録"));
         return;
       }
       if (disposed) return;
-      socket = openSubscriptionSocket(client.clientId, subRef.current.id, {
-        onBound: () => void reload(),
-        onPing: () => void reload(),
-        onBindError: () => void setup(),
-      });
+      sockets.set(
+        spec.id,
+        openSubscriptionSocket(client.clientId, spec.id, {
+          onBound: () => void load(true),
+          onPing: () => void load(true),
+          onBindError: () => void setup(spec),
+        }),
+      );
     };
+    const setupAll = () => specs().forEach((spec) => void setup(spec));
 
-    void reload();
-    void setup();
+    void load(false);
+    setupAll();
     const unsubscribe = monitorSocket.subscribe((m) => {
       if (m.type === "demo.reset") {
         setData(null);
-        void reload();
-        void setup();
+        void load(false);
+        setupAll();
       }
     });
     return () => {
       disposed = true;
-      socket?.close();
+      sockets.forEach((socket) => socket.close());
       unsubscribe();
     };
-  }, [client, reload, toDisplay, depsKey]);
+  }, [client, load, toDisplay, depsKey]);
 
   const clearError = useCallback(() => setErrorState(null), []);
   const setError = useCallback((e: unknown, operationName: string) => setErrorState(toDisplay(e, operationName)), [toDisplay]);

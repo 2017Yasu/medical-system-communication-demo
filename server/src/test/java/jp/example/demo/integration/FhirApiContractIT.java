@@ -58,13 +58,13 @@ class FhirApiContractIT {
     @Test
     void resetRestoresTheSeedAndPatientsCanBeSearched() throws Exception {
         JsonNode r = demo.reset();
-        assertThat(r.get("seedResources").asInt()).isEqualTo(12);
+        assertThat(r.get("seedResources").asInt()).isEqualTo(27);
 
         HttpResponse<String> res = demo.fhirRaw("GET", "/Patient", Map.of(), null);
         assertThat(res.statusCode()).isEqualTo(200);
         Bundle bundle = Fhir.json().parseResource(Bundle.class, res.body());
-        assertThat(bundle.getEntry()).hasSize(2);
-        assertThat(bundle.getTotal()).isEqualTo(2);
+        assertThat(bundle.getEntry()).hasSize(4);
+        assertThat(bundle.getTotal()).isEqualTo(4);
 
         HttpResponse<String> one = demo.fhirRaw("GET", "/Patient/demo-taro", Map.of(), null);
         assertThat(one.statusCode()).isEqualTo(200);
@@ -202,5 +202,71 @@ class FhirApiContractIT {
         demo.reset();
         JsonNode policy = DemoServerExtension.JSON.readTree(demo.raw("GET", "/demo/policy", Map.of(), null).body());
         assertThat(policy.get("ifMatchRequired").asBoolean()).isTrue();
+    }
+
+    // ---- S3（specs/003 contracts/fhir-api.md）----
+
+    static final Map<String, String> JSON_PUT = Map.of("Content-Type", "application/fhir+json", "X-Demo-Client", "ehr-doctor");
+
+    static String slotJson(String status, String comment) {
+        return "{\"resourceType\":\"Slot\",\"id\":\"ct1-1000\",\"schedule\":{\"reference\":\"Schedule/ct-1\"},"
+                + "\"status\":\"" + status + "\",\"start\":\"2026-10-04T10:00:00+09:00\",\"end\":\"2026-10-04T10:30:00+09:00\""
+                + (comment == null ? "" : ",\"comment\":\"" + comment + "\"") + "}";
+    }
+
+    static Map<String, String> ifMatch(String v) {
+        Map<String, String> h = new java.util.LinkedHashMap<>(JSON_PUT);
+        if (v != null) {
+            h.put("If-Match", v);
+        }
+        return h;
+    }
+
+    @Test
+    void scheduleDeviceAndSlotsAreReadableAndTheSeedIsInPlace() throws Exception {
+        demo.reset();
+        assertThat(demo.fhirRaw("GET", "/Schedule/ct-1", Map.of(), null).statusCode()).isEqualTo(200);
+        assertThat(demo.fhirRaw("GET", "/Device/ct-1", Map.of(), null).statusCode()).isEqualTo(200);
+        Bundle slots = Fhir.json().parseResource(Bundle.class, demo.fhirRaw("GET", "/Slot?schedule=Schedule/ct-1", Map.of(), null).body());
+        assertThat(slots.getEntry()).hasSize(6);
+        Bundle booked = Fhir.json().parseResource(
+                Bundle.class, demo.fhirRaw("GET", "/Appointment?slot=Slot/ct1-0900&status=booked", Map.of(), null).body());
+        assertThat(booked.getEntry()).hasSize(1);
+        assertThat(demo.fhirRaw("GET", "/ServiceRequest?category=108252007", Map.of(), null).statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void slotHoldFollowsTheIfMatchRule() throws Exception {
+        demo.reset();
+        HttpResponse<String> first = demo.fhirRaw("PUT", "/Slot/ct1-1000", ifMatch("W/\"1\""), slotJson("busy-tentative", "仮押さえ：医師 X"));
+        assertThat(first.statusCode()).isEqualTo(200);
+        assertThat(first.headers().firstValue("ETag")).contains("W/\"2\"");
+        HttpResponse<String> second = demo.fhirRaw("PUT", "/Slot/ct1-1000", ifMatch("W/\"1\""), slotJson("busy-tentative", "仮押さえ：医師 Y"));
+        assertThat(second.statusCode()).isEqualTo(412);
+        assertThat(demo.fhirRaw("PUT", "/Slot/ct1-1000", ifMatch(null), slotJson("busy-tentative", "仮押さえ：医師 Y")).statusCode())
+                .isEqualTo(400);
+    }
+
+    @Test
+    void scheduleAndDeviceAreReadOnlyAndResetRestoresSlots() throws Exception {
+        demo.reset();
+        String schedule = "{\"resourceType\":\"Schedule\",\"id\":\"ct-1\",\"active\":false}";
+        assertThat(demo.fhirRaw("PUT", "/Schedule/ct-1", ifMatch("W/\"1\""), schedule).statusCode()).isEqualTo(400);
+        assertThat(demo.fhirRaw("PUT", "/Slot/ct1-1000", ifMatch("W/\"1\""), slotJson("busy-tentative", "仮押さえ：医師 X")).statusCode())
+                .isEqualTo(200);
+        demo.reset();
+        HttpResponse<String> slot = demo.fhirRaw("GET", "/Slot/ct1-1000", Map.of(), null);
+        assertThat(slot.headers().firstValue("ETag")).contains("W/\"1\"");
+        assertThat(slot.body()).contains("\"free\"");
+    }
+
+    @Test
+    void subscriptionCanUseSlotCriteria() throws Exception {
+        demo.reset();
+        String sub = "{\"resourceType\":\"Subscription\",\"id\":\"ehr-ct-slots\",\"status\":\"requested\",\"reason\":\"CT 枠\","
+                + "\"criteria\":\"Slot?schedule=Schedule/ct-1\",\"channel\":{\"type\":\"websocket\",\"payload\":\"application/fhir+json\"}}";
+        HttpResponse<String> res = demo.fhirRaw("PUT", "/Subscription/ehr-ct-slots", JSON_PUT, sub);
+        assertThat(res.statusCode()).isEqualTo(201);
+        assertThat(res.body()).contains("\"active\"");
     }
 }

@@ -65,3 +65,49 @@ describe("diffVersions", () => {
     expect(diffs[2].causeClient).toBeNull();
   });
 });
+
+describe("S3: slot history (specs/003 R-10)", () => {
+  const slot = (versionId: string, status: string, comment?: string) => ({
+    resource: { resourceType: "Slot", id: "ct1-1000", status, ...(comment ? { comment } : {}), meta: { versionId } },
+    etag: `W/"${versionId}"`,
+  });
+  const expiry = (seq: number, resource: string): TrafficRecord => ({
+    seq, timestamp: "t", kind: "server", client: "server-slot-expiry",
+    request: null, response: null, notification: null, demoEvent: null,
+    serverAction: {
+      action: "slot-hold-expired",
+      resource,
+      before: { status: "busy-tentative", versionId: "2", comment: "仮押さえ：医師 X" },
+      after: { status: "free", versionId: "3" },
+      holdSeconds: 30,
+    },
+  });
+  const records = [
+    { ...rec(20, "PUT", "/fhir/Slot/ct1-1000", 200, "{}", { ETag: 'W/"2"' }), client: "ehr-doctor" },
+    expiry(21, "Slot/ct1-1000/_history/3"),
+  ];
+  const versions = [slot("3", "free"), slot("2", "busy-tentative", "仮押さえ：医師 X"), slot("1", "free")] as never;
+
+  it("reports status and comment (holder) changes of a slot", () => {
+    const diffs = diffVersions(versions, records);
+    expect(diffs.map((d) => d.changed)).toEqual([["status", "comment"], ["status", "comment"], []]);
+  });
+
+  it("does not report a comment change for tasks", () => {
+    const task = (versionId: string, status: string) => ({
+      resource: { resourceType: "Task", id: "1", status, meta: { versionId } },
+      etag: `W/"${versionId}"`,
+    });
+    const diffs = diffVersions([task("2", "accepted"), task("1", "requested")] as never, []);
+    expect(diffs[0].changed).toEqual(["status"]);
+  });
+
+  it("finds the server-side expiry as the cause of the version it created", () => {
+    expect(findCause(records, "Slot", "ct1-1000", "3")?.kind).toBe("server");
+    expect(findCause(records, "Slot", "ct1-1000", "3")?.client).toBe("server-slot-expiry");
+    expect(findCause(records, "Slot", "ct1-1000", "2")?.client).toBe("ehr-doctor");
+    const diffs = diffVersions(versions, records);
+    expect(diffs[0].causeClient).toBe("server-slot-expiry");
+    expect(diffs[1].causeClient).toBe("ehr-doctor");
+  });
+});

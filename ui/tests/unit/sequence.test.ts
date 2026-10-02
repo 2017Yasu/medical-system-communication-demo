@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TrafficRecord } from "../../src/realtime/types";
-import { buildSequence, clientName, laneOf, resultText, resourceRefsIn } from "../../src/monitor/sequenceModel";
+import { buildSequence, clientName, laneOf, lanesFor, resultText, resourceRefsIn } from "../../src/monitor/sequenceModel";
 
 function http(seq: number, client: string, method: string, url: string, status = 200, extra: Partial<TrafficRecord> = {}): TrafficRecord {
   return {
@@ -149,5 +149,101 @@ describe("version check annotations and 400/412 results (specs/002 R-07)", () =>
     expect(item.label).toContain('If-Match: W/"7"');
     expect(buildSequence([http(2, "lis-tech-a", "GET", "/fhir/Task/1")])[0].label).toBe("GET Task/1");
     expect(buildSequence([http(3, "ehr-doctor", "POST", "/fhir")])[0].label).toBe("POST Transaction（一括登録）");
+  });
+});
+
+describe("S3: radiology lane, doctor Y and Transaction annotations (specs/003 R-10)", () => {
+  const tx = (seq: number, client: string, entries: unknown[], status = 200, responseBody = ""): TrafficRecord => ({
+    ...http(seq, client, "POST", "/fhir", status),
+    request: { method: "POST", url: "/fhir", headers: {}, body: JSON.stringify({ resourceType: "Bundle", type: "transaction", entry: entries }), truncated: false },
+    response: { status, headers: {}, body: responseBody, durationMs: 5, truncated: false },
+  });
+  const slotPut = { resource: { resourceType: "Slot", id: "ct1-1000" }, request: { method: "PUT", url: "Slot/ct1-1000", ifMatch: 'W/"2"' } };
+  const post = (type: string, resource: unknown = { resourceType: type }) => ({ resource, request: { method: "POST", url: type } });
+
+  it("maps the new clients to lanes and names", () => {
+    expect(laneOf("ris")).toBe("ris");
+    expect(laneOf("ehr-doctor-y")).toBe("ehr");
+    expect(laneOf("server-slot-expiry")).toBe("server");
+    expect(clientName("ehr-doctor-y")).toBe("医師 Y");
+    expect(clientName("ris")).toBe("放射線部門システム");
+    expect(clientName("server-slot-expiry")).toBe("FHIR サーバー（仮押さえの期限切れ）");
+  });
+
+  it("annotates a Transaction that contains a slot update as version-checked", () => {
+    const [withSlot] = buildSequence([tx(1, "ehr-doctor", [slotPut, post("Appointment"), post("ServiceRequest"), post("Task")])]);
+    expect(withSlot.label).toBe("POST Transaction（一括登録・枠の版の確認あり）");
+    const [direct] = buildSequence([tx(2, "ehr-doctor-y", [post("Appointment"), post("ServiceRequest"), post("Task")])]);
+    expect(direct.label).toBe("POST Transaction（一括登録）");
+  });
+
+  it("keeps the plain label when the Transaction body is unreadable or truncated", () => {
+    const record = tx(1, "ehr-doctor", []);
+    record.request = { ...record.request!, body: "{ not json", truncated: true };
+    expect(buildSequence([record])[0].label).toBe("POST Transaction（一括登録）");
+  });
+
+  it("chooses the lanes from the records that are shown", () => {
+    const lis = buildSequence([http(1, "lis-tech-a", "GET", "/fhir/Task/1")]);
+    const ris = buildSequence([http(2, "ris", "GET", "/fhir/Slot")]);
+    expect(lanesFor([])).toEqual(["ehr", "server", "lis"]);
+    expect(lanesFor(lis)).toEqual(["ehr", "server", "lis"]);
+    expect(lanesFor(ris)).toEqual(["ehr", "server", "ris"]);
+    expect(lanesFor([...lis, ...ris])).toEqual(["ehr", "server", "lis", "ris"]);
+    // 通知の宛先も数える
+    expect(lanesFor(buildSequence([note(3, "ris", "ris-slots", "Slot/ct1-1000/_history/2")]))).toEqual(["ehr", "server", "ris"]);
+  });
+
+  it("offers the resources updated in a Transaction, the locations in its response and the slot of an appointment as history targets", () => {
+    const appointment = post("Appointment", { resourceType: "Appointment", slot: [{ reference: "Slot/ct1-1000" }] });
+    const response = JSON.stringify({
+      resourceType: "Bundle",
+      type: "transaction-response",
+      entry: [{ response: { status: "200 OK", location: "Slot/ct1-1000/_history/3" } }, { response: { status: "201 Created", location: "Appointment/1/_history/1" } }],
+    });
+    const refs = resourceRefsIn([tx(1, "ehr-doctor", [slotPut, appointment, post("Task")], 200, response)]);
+    expect(refs).toEqual(["Appointment/1", "Slot/ct1-1000"]);
+    // 直接予約：枠を一度も更新しなくても、予約が参照する枠を履歴の対象に選べる
+    const direct = resourceRefsIn([tx(2, "ehr-doctor-y", [appointment, post("Task")])]);
+    expect(direct).toContain("Slot/ct1-1000");
+  });
+});
+
+describe("S3: the slot hold expiry as a server-side action (specs/003 R-06)", () => {
+  const expiry = (seq: number): TrafficRecord => ({
+    seq, timestamp: "2026-10-02T14:03:31.250+09:00", kind: "server", client: "server-slot-expiry",
+    request: null, response: null, notification: null, demoEvent: null,
+    serverAction: {
+      action: "slot-hold-expired",
+      resource: "Slot/ct1-1000/_history/3",
+      before: { status: "busy-tentative", versionId: "2", comment: "仮押さえ：医師 X" },
+      after: { status: "free", versionId: "3" },
+      holdSeconds: 30,
+    },
+  });
+
+  it("becomes a closed arrow at the FHIR server lane, named after the server rule", () => {
+    const [item] = buildSequence([expiry(5)]);
+    expect(item.kind).toBe("server");
+    expect(item.from).toBe("server");
+    expect(item.to).toBe("server");
+    expect(item.operator).toBe("FHIR サーバー（仮押さえの期限切れ）");
+    expect(item.label).toBe("仮押さえの期限切れ Slot/ct1-1000（仮押さえ中 → 空き、版 2 → 3）");
+    expect(item.ok).toBe(true);
+    expect(item.detail).toBe("サーバーの規則による自動の更新");
+  });
+
+  it("is ordered by seq together with the other records", () => {
+    const items = buildSequence([note(7, "ehr-doctor", "ehr-ct-slots", "Slot/ct1-1000/_history/3"), expiry(5), http(4, "ehr-doctor", "PUT", "/fhir/Slot/ct1-1000")]);
+    expect(items.map((i) => i.seq)).toEqual([4, 5, 7]);
+    expect(items.map((i) => i.kind)).toEqual(["http", "server", "notification"]);
+  });
+
+  it("does not pull in the lis or ris lane by itself", () => {
+    expect(lanesFor(buildSequence([expiry(5)]))).toEqual(["ehr", "server", "lis"]);
+  });
+
+  it("ignores a server record without an action", () => {
+    expect(buildSequence([{ ...expiry(6), serverAction: null }])).toEqual([]);
   });
 });
