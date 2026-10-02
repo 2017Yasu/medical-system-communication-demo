@@ -40,12 +40,12 @@ const acceptStep = (no: number): ScenarioStep => ({
   no,
   title: "技師 A が検体を受付",
   actor: "lis-tech-a",
-  target: { screen: "lis", control: "accept-1" },
+  target: { screen: "lis", control: "accept-1,accept-confirm-1" },
   run: async (ctx) => acceptTask(ctx.clients["lis-tech-a"], await currentOrder(ctx, "lis-tech-a"), "tech-a", ctx.now()),
   expected: { ...accepted, traffic: [patch] },
   explanation: {
     business: "臨床検査技師 A が検体を受け付けます。作業は「受付済み」、担当者は技師 A になります。",
-    fhir: "PATCH /Task/1（If-Match 付き）で status=accepted、businessStatus=received、owner=PractitionerRole/tech-a を 1 回で更新します。",
+    fhir: "GET /Task/1 で版を読み込み、PATCH /Task/1（読み込んだ版の If-Match 付き）で status=accepted、businessStatus=received、owner=PractitionerRole/tech-a を 1 回で更新します。",
   },
 });
 

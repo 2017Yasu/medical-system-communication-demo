@@ -30,6 +30,8 @@ export interface TrafficRecord {
 export interface DemoPolicy {
   ifMatchRequired: boolean;
   taskTransitionCheck: boolean;
+  /** 検体検査システムが更新時に If-Match を付けるか（デモ専用。サーバーの判定には使わない）。 */
+  labSendsIfMatch: boolean;
 }
 
 export type MonitorMessage =

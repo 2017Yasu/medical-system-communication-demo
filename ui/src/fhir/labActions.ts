@@ -55,8 +55,29 @@ export async function recordCollection(client: FhirClient, order: CurrentOrder, 
   );
 }
 
+/** 受付を始める：作業を取得し、その版（ETag）を確定まで保持できるようにして返す（D-27）。 */
+export async function beginAccept(client: FhirClient, taskId: string): Promise<Versioned<Task>> {
+  return client.read<Task>("Task", taskId);
+}
+
+/**
+ * 受付を確定する。受付を始めた時点の版（draft の ETag）で If-Match を付ける。
+ * sendIfMatch が false のときは付けない（版の確認をしない作りの検体検査システムを模す、デモ専用）。
+ */
+export async function confirmAccept(
+  client: FhirClient,
+  draft: Versioned<Task>,
+  techRoleId: string,
+  sendIfMatch: boolean,
+  now = new Date(),
+): Promise<void> {
+  await client.patch("Task", draft.resource.id!, buildAcceptPatch(techRoleId, now), sendIfMatch ? draft.etag : null, "受付");
+}
+
+/** 受付を始めて、すぐ確定する（シナリオの自動実行用。画面と同じ GET → PATCH を送る）。 */
 export async function acceptTask(client: FhirClient, order: CurrentOrder, techRoleId: string, now = new Date()): Promise<void> {
-  await client.patch("Task", order.task.resource.id!, buildAcceptPatch(techRoleId, now), order.task.etag, "受付");
+  const draft = await beginAccept(client, order.task.resource.id!);
+  await confirmAccept(client, draft, techRoleId, true, now);
 }
 
 export async function startTask(client: FhirClient, order: CurrentOrder, now = new Date()): Promise<void> {

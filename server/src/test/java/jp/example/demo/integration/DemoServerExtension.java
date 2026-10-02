@@ -76,6 +76,22 @@ public class DemoServerExtension implements BeforeAllCallback, AfterAllCallback,
         return JSON.readTree(raw("POST", "/demo/reset", Map.of(), null).body());
     }
 
+    /** ポリシーを部分更新する（null の項目は本文に含めない）。 */
+    public JsonNode setPolicy(Boolean ifMatchRequired, Boolean labSendsIfMatch) throws Exception {
+        StringBuilder body = new StringBuilder("{");
+        if (ifMatchRequired != null) {
+            body.append("\"ifMatchRequired\":").append(ifMatchRequired);
+        }
+        if (labSendsIfMatch != null) {
+            if (ifMatchRequired != null) {
+                body.append(',');
+            }
+            body.append("\"labSendsIfMatch\":").append(labSendsIfMatch);
+        }
+        body.append('}');
+        return JSON.readTree(raw("PUT", "/demo/policy", Map.of("Content-Type", "application/json"), body.toString()).body());
+    }
+
     /** `X-Demo-Client` を付ける HAPI Generic Client（R4）。 */
     public IGenericClient fhir(String client) {
         Fhir.CTX.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);

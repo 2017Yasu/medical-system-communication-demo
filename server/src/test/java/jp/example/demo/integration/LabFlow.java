@@ -165,6 +165,16 @@ public final class LabFlow {
         return patchTask(ids, tech, "accepted", "received", "PractitionerRole/" + tech);
     }
 
+    /** 受付の PATCH を、渡した If-Match の値で送る（null なら If-Match を付けない）。本文は {@link #accept} と同じ。 */
+    public HttpResponse<String> acceptWith(Ids ids, String tech, String ifMatchOrNull) throws Exception {
+        return patchTaskWith(ids, tech, "accepted", "received", "PractitionerRole/" + tech, ifMatchOrNull);
+    }
+
+    /** 現在の作業の ETag（`W/"n"`）。 */
+    public String etagNow(Ids ids) {
+        return etag(task(ids.task()));
+    }
+
     public HttpResponse<String> start(Ids ids, String tech) throws Exception {
         return patchTask(ids, tech, "in-progress", "measuring", null);
     }
@@ -186,7 +196,11 @@ public final class LabFlow {
     }
 
     private HttpResponse<String> patchTask(Ids ids, String tech, String status, String business, String owner) throws Exception {
-        Task t = task(ids.task());
+        return patchTaskWith(ids, tech, status, business, owner, etag(task(ids.task())));
+    }
+
+    private HttpResponse<String> patchTaskWith(Ids ids, String tech, String status, String business, String owner, String ifMatch)
+            throws Exception {
         JsonNode bs = JSON.valueToTree(Map.of(
                 "coding", List.of(Map.of("system", MASTER.at("/systems/businessStatus").asText(), "code", business, "display", businessDisplay(business))),
                 "text", businessDisplay(business)));
@@ -196,7 +210,7 @@ public final class LabFlow {
             ops.append("{\"op\":\"add\",\"path\":\"/owner\",\"value\":{\"reference\":\"").append(owner).append("\"}},");
         }
         ops.append("{\"op\":\"add\",\"path\":\"/lastModified\",\"value\":\"").append(OffsetDateTime.now()).append("\"}]");
-        return demo.fhirRaw("PATCH", "/Task/" + ids.task(), headers("lis-" + tech, etag(t)), ops.toString());
+        return demo.fhirRaw("PATCH", "/Task/" + ids.task(), headers("lis-" + tech, ifMatch), ops.toString());
     }
 
     /** 全項目の結果を承認・報告する（依頼が一部報告済みなら、その DiagnosticReport を final に更新する）。 */

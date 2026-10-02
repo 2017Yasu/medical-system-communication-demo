@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PageBag } from "./pages";
+import { PageBag, acceptOn } from "./pages";
 
 let bag: PageBag;
 test.afterEach(async () => bag.closeAll());
@@ -43,7 +43,7 @@ test("S1 を 3 つの画面で手動操作して最後まで通す", async ({ br
   await expect(lisRow.getByRole("button", { name: "受付", exact: true })).toBeEnabled(SYNC);
 
   // 4. 技師 A が受付 → 電子カルテにも「受付済み」と担当者が出る
-  await lisRow.getByRole("button", { name: "受付", exact: true }).click();
+  await acceptOn(lisRow);
   await expect(lisRow).toContainText("受付済み");
   await expect(lisRow).toContainText("検体到着");
   await expect(docRow).toContainText("受付済み", SYNC);
@@ -94,7 +94,7 @@ test("2 つの検体検査システムの画面が、片方の受付を通知で
   await expect(rowB.getByRole("button", { name: "受付", exact: true })).toBeEnabled(SYNC);
 
   // 技師 A が受付すると、技師 B の画面も通知で更新され、受付ボタンが消える（同時操作の事故の再現は S2）
-  await rowA.getByRole("button", { name: "受付", exact: true }).click();
+  await acceptOn(rowA);
   await expect(rowA).toContainText("受付済み");
   await expect(rowB).toContainText("受付済み", SYNC); // 技師 B の画面も通知で更新される
   await expect(rowB.getByRole("button", { name: "受付", exact: true })).toHaveCount(0);

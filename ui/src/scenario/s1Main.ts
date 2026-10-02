@@ -96,14 +96,14 @@ export const s1Main: Scenario = {
       no: 4,
       title: "技師 A が検体を受付",
       actor: "lis-tech-a",
-      target: { screen: "lis", control: "accept-1" },
+      target: { screen: "lis", control: "accept-1,accept-confirm-1" },
       run: async (ctx) => acceptTask(ctx.clients["lis-tech-a"], await currentOrder(ctx, "lis-tech-a"), "tech-a", ctx.now()),
       expected: { ...accepted, traffic: [{ kind: "http", client: "lis-tech-a", method: "PATCH", resourceType: "Task" }] },
       explanation: {
         business:
           "臨床検査技師 A が検体を受け付けます。作業は「受付済み」になり、担当者が技師 A に変わります。",
         fhir:
-          "PATCH /Task/1 に If-Match を付け、status=accepted、businessStatus=received、owner=PractitionerRole/tech-a を 1 回で更新します。If-Match により、他の人が先に更新していれば 412 で拒否されます（Lost Update の防止）。",
+          "受付画面を開くときに GET /Task/1 で版を読み込み、確定で PATCH /Task/1 にその版の If-Match を付け、status=accepted、businessStatus=received、owner=PractitionerRole/tech-a を 1 回で更新します。If-Match により、他の人が先に更新していれば 412 で拒否されます（Lost Update の防止）。",
       },
     },
     {

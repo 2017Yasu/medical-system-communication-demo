@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ErrorBanner } from "../../app/ErrorBanner";
+import { usePolicy } from "../../demo/usePolicy";
 import { FhirError, type ClientId } from "../../fhir/client";
-import { acceptTask, rejectTask, rerunTask, startTask } from "../../fhir/labActions";
+import { beginAccept, confirmAccept, rejectTask, rerunTask, startTask } from "../../fhir/labActions";
+import { monitorSocket } from "../../realtime/monitorSocket";
 import { useLiveData } from "../../realtime/useLiveData";
 import { LIS_OWNERS, loadLabOrders, orderNumber, orderedSetNames, taskBusinessStatus, type OrderRow } from "../shared/orders";
 import { SrStatus, TaskStatus, ownerLabel } from "../shared/StatusBadges";
+import { AcceptDraftPanel, type AcceptDraft } from "./AcceptDraftPanel";
 import { RejectDialog } from "./RejectDialog";
 import { ResultEntry } from "./ResultEntry";
 
@@ -27,9 +30,14 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
     },
     load: loadLabOrders,
   });
+  const { policy } = usePolicy();
+  const [draft, setDraft] = useState<AcceptDraft | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [entryId, setEntryId] = useState<string | null>(null);
   const [rejectId, setRejectId] = useState<string | null>(null);
+
+  // 初期化を受けたら、受付中の作業を破棄する（D-27）
+  useEffect(() => monitorSocket.subscribe((m) => m.type === "demo.reset" && setDraft(null)), []);
 
   /** 版の確認つき（If-Match）で Task を更新する。競合は表示して最新を取り直し、自動ではやり直さない（FR-004）。 */
   const act = async (row: OrderRow, operation: string, run: () => Promise<unknown>) => {
@@ -48,7 +56,20 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
   };
 
   const order = (row: OrderRow) => ({ sr: row.sr, task: row.task! });
-  const accept = (row: OrderRow) => act(row, "受付", () => acceptTask(live.client, order(row), current));
+  /** 受付を始める：作業を取得して版を保持する。確定までその版を使う（D-27）。 */
+  const beginAcceptRow = (row: OrderRow) =>
+    act(row, "受付", async () => {
+      const task = await beginAccept(live.client, row.task!.resource.id!);
+      setDraft({ srId: row.sr.resource.id!, task, openedAt: new Date().toISOString() });
+    });
+  /** 受付を確定する。成功・失敗にかかわらず受付中の作業は破棄し、一覧を取り直す。 */
+  const confirmAcceptRow = (row: OrderRow) =>
+    act(row, "受付", async () => {
+      const d = draft;
+      if (!d || !policy) return;
+      setDraft(null);
+      await confirmAccept(live.client, d.task, current, policy.labSendsIfMatch);
+    });
   const start = (row: OrderRow) => act(row, "測定開始", () => startTask(live.client, order(row)));
   const rerun = (row: OrderRow) => act(row, "再検", () => rerunTask(live.client, order(row)));
   const reject = (row: OrderRow, reason: string) =>
@@ -72,6 +93,9 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
         </header>
       )}
       <div className="screen">
+        <p className="muted" data-testid="lab-if-match-mode">
+          版の確認：{policy ? (policy.labSendsIfMatch ? "付ける" : "付けない（デモ設定）") : "取得中…"}
+        </p>
         <ErrorBanner error={live.error} onDismiss={live.clearError} />
         <section className="panel" aria-label="作業の一覧">
           <h2>検査部の作業</h2>
@@ -118,13 +142,28 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
                         )}
                         {task?.status === "requested" && biz !== "not-collected" && (
                           <div className="row">
-                            <button type="button" className="primary" disabled={busy} onClick={() => accept(row)} data-guide={`accept-${id}`}>
+                            <button type="button" className="primary" disabled={busy || draft !== null} onClick={() => beginAcceptRow(row)} data-guide={`accept-${id}`}>
                               受付
                             </button>
                             <button type="button" className="danger" disabled={busy} onClick={() => setRejectId(rejectId === id ? null : id)} data-guide={`reject-${id}`}>
                               受付不可
                             </button>
                           </div>
+                        )}
+                        {task?.status === "accepted" && (
+                          <div className="muted" data-testid={`accepted-note-${id}`}>
+                            この依頼は受付済みです（担当：{ownerLabel(row)}）
+                          </div>
+                        )}
+                        {draft?.srId === id && (
+                          <AcceptDraftPanel
+                            row={row}
+                            draft={draft}
+                            busy={busy}
+                            canConfirm={policy !== null}
+                            onConfirm={() => confirmAcceptRow(row)}
+                            onCancel={() => setDraft(null)}
+                          />
                         )}
                         {rejectId === id && task?.status === "requested" && (
                           <RejectDialog onSubmit={(reason) => reject(row, reason)} onCancel={() => setRejectId(null)} />

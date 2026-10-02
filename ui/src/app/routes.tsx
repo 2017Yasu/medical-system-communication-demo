@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router";
+import { ControlPanel } from "./ControlPanel";
 import { Launcher } from "./Launcher";
 import { StageView } from "./StageView";
 import { MonitorScreen } from "../monitor/MonitorScreen";
@@ -20,6 +21,7 @@ export function AppRoutes() {
     <Routes>
       <Route path="/" element={<Launcher />} />
       <Route path="/stage" element={<StageView />} />
+      <Route path="/control" element={<ControlPanel />} />
       <Route path="/ehr" element={<EhrScreen />} />
       <Route path="/lis" element={<LisScreen />} />
       <Route path="/monitor" element={<MonitorScreen />} />
