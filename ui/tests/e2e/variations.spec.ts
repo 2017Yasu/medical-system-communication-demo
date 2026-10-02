@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { PageBag } from "./pages";
+import { PageBag, acceptOn } from "./pages";
 
 const SYNC = { timeout: 3000 };
 let bag: PageBag;
@@ -24,7 +24,7 @@ const lisRow = (p: Page) => p.getByTestId("task-1");
 
 test("取消：結果報告前の依頼を医師が取り消すと、依頼も作業も「取消」になる", async ({ browser, request }) => {
   const { doctor, lis } = await setup(browser, request, [/血算/]);
-  await lisRow(lis).getByRole("button", { name: "受付", exact: true }).click();
+  await acceptOn(lisRow(lis));
   await expect(doctorRow(doctor)).toContainText("受付済み", SYNC);
   await doctorRow(doctor).getByRole("button", { name: "取消" }).click();
   await expect(doctorRow(doctor).locator("td").nth(1)).toContainText("取消");
@@ -51,7 +51,7 @@ test("受付不可：理由を入力しないと確定できず、理由が電�
 
 test("再検：保留・再検中を経て実施中に戻り、報告で完了する", async ({ browser, request }) => {
   const { doctor, lis } = await setup(browser, request, [/血算/]);
-  await lisRow(lis).getByRole("button", { name: "受付", exact: true }).click();
+  await acceptOn(lisRow(lis));
   await lisRow(lis).getByRole("button", { name: "測定開始" }).click();
   await lisRow(lis).getByRole("button", { name: "再検" }).click();
   await expect(lisRow(lis)).toContainText("保留");
@@ -68,7 +68,7 @@ test("再検：保留・再検中を経て実施中に戻り、報告で完了�
 
 test("一部先行報告：血算だけ先に報告しても作業と依頼は完了せず、残りの報告で完了する", async ({ browser, request }) => {
   const { doctor, lis } = await setup(browser, request, [/血算/, /生化学/]);
-  await lisRow(lis).getByRole("button", { name: "受付", exact: true }).click();
+  await acceptOn(lisRow(lis));
   await lisRow(lis).getByRole("button", { name: "測定開始" }).click();
   await lisRow(lis).getByRole("button", { name: "結果入力" }).click();
   const entry = lis.getByTestId("result-entry");
