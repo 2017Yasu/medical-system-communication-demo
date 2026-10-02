@@ -160,7 +160,7 @@ SC-002（同時確定 100 回）・SC-003（20 回連続）が自動テストを
 
 ### Implementation for User Story 4
 
-- [ ] T039 [P] [US4] `docs/06-demo-procedures.md` の骨子（T002）を完成させる（research.md R-11 の構成。期待結果と話すことの列を埋める）：冒頭に本書の目的（画面上の案内を出さないシナリオの手順。D-29）。S2 の節に (1) 準備：起動、4 つのウィンドウの URL（`/control`・`/lis?tech=tech-a`・`/lis?tech=tech-b`・`/monitor`）と 1920×1080 での並べ方の例（左上 技師 A、右上 技師 B、左下 デモ制御パネル、右下 通信モニタ）、入口の「S2 同時受付で開くウィンドウ」からも開けること。(2) S2-1・S2-2・S2-3 のそれぞれ：表（# / 操作する画面 / 操作 / 画面の期待結果 / 通信モニタの期待結果 / 話すこと（業務上の意味・FHIR 上の意味））。期待結果は quickstart.md §2.1〜§2.3 と一致させ、版は実際の番号（準備の後の版は 2、例：`W/"2"`）で書く（data-model.md §3）。(3) 締めの解説：ETag と If-Match（楽観的ロック）、「誰が処理中か」は Task.status + owner（論理ロック。FHIR に編集中ロックの標準 API は無い）、状態の遷移チェックでは「受付済み → 受付済み」の上書きを防げないこと。(4) うまくいかないとき：設定が違う・順序を間違えた・確認欄が開かない → 準備ボタンを押し直す／初期化。(5) 所要時間の目安：S2 全体で解説込み 5 分（D-24）、S1 と合わせて 15 分
+- [X] T039 [P] [US4] `docs/06-demo-procedures.md` の骨子（T002）を完成させる（research.md R-11 の構成。期待結果と話すことの列を埋める）：冒頭に本書の目的（画面上の案内を出さないシナリオの手順。D-29）。S2 の節に (1) 準備：起動、4 つのウィンドウの URL（`/control`・`/lis?tech=tech-a`・`/lis?tech=tech-b`・`/monitor`）と 1920×1080 での並べ方の例（左上 技師 A、右上 技師 B、左下 デモ制御パネル、右下 通信モニタ）、入口の「S2 同時受付で開くウィンドウ」からも開けること。(2) S2-1・S2-2・S2-3 のそれぞれ：表（# / 操作する画面 / 操作 / 画面の期待結果 / 通信モニタの期待結果 / 話すこと（業務上の意味・FHIR 上の意味））。期待結果は quickstart.md §2.1〜§2.3 と一致させ、版は実際の番号（準備の後の版は 2、例：`W/"2"`）で書く（data-model.md §3）。(3) 締めの解説：ETag と If-Match（楽観的ロック）、「誰が処理中か」は Task.status + owner（論理ロック。FHIR に編集中ロックの標準 API は無い）、状態の遷移チェックでは「受付済み → 受付済み」の上書きを防げないこと。(4) うまくいかないとき：設定が違う・順序を間違えた・確認欄が開かない → 準備ボタンを押し直す／初期化。(5) 所要時間の目安：S2 全体で解説込み 5 分（D-24）、S1 と合わせて 15 分
 - [X] T040 [P] [US4] `ui/src/app/Launcher.tsx` の「個別のウィンドウで開く」に「デモ制御パネル」（`/control`）を加え、小見出し「S2 同時受付で開くウィンドウ」の下に `/control`・`/lis?tech=tech-a`・`/lis?tech=tech-b`・`/monitor` へのリンクと「操作の手順は docs/06-demo-procedures.md を参照」の 1 行を置く（contracts/ui-screens.md「ルート」）
 - [X] T041 [P] [US4] `docs/README.md` の一覧に `06-demo-procedures.md` があることを確認し、説明文を実装後の内容に合わせる
 - [X] T042 [US4] `ui/tests/e2e/s2-concurrent.spec.ts` に入口のテストを追加する：`/` に「S2 同時受付で開くウィンドウ」と 4 つのリンクがあり、各リンクの先が開ける。S2 のウィンドウ（`/control`・`/lis`）に自習モードのガイドの強調（S1 のガイドが付ける `data-guide-active` 属性。`ui/src/guide/useGuide.ts`）が無いこと（D-29）
@@ -171,10 +171,10 @@ SC-002（同時確定 100 回）・SC-003（20 回連続）が自動テストを
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T043 [P] `CLAUDE.md` を更新する：「現在の実装範囲は S1（検体検査）」を「S1（検体検査）と S2（同時受付）」に、S2 の要点（S2 はステージビューを使わず `/control` と個別ウィンドウ・手順書 docs/06 で操作、`labSendsIfMatch` はサーバーの判定に使わないデモ設定、受付は GET → PATCH の 2 段階で `AcceptDraft` の ETag を使う）と、コマンド（`mvn verify -Dit.test=S2ScenarioIT -Ds2.repeat=100`、`S2_REPEAT=100 npx playwright test tests/e2e/s2-concurrent.spec.ts`）を追記する
+- [X] T043 [P] `CLAUDE.md` を更新する：「現在の実装範囲は S1（検体検査）」を「S1（検体検査）と S2（同時受付）」に、S2 の要点（S2 はステージビューを使わず `/control` と個別ウィンドウ・手順書 docs/06 で操作、`labSendsIfMatch` はサーバーの判定に使わないデモ設定、受付は GET → PATCH の 2 段階で `AcceptDraft` の ETag を使う）と、コマンド（`mvn verify -Dit.test=S2ScenarioIT -Ds2.repeat=100`、`S2_REPEAT=100 npx playwright test tests/e2e/s2-concurrent.spec.ts`）を追記する
 - [ ] T044 全体の回帰を実行する：UI をビルドして JAR を作り直し、`mvn verify -Ds1.repeat=20 -Ds2.repeat=100`、`npm test`、`npm run typecheck`、`npx playwright test`、`S2_REPEAT=100 npx playwright test tests/e2e/s2-concurrent.spec.ts -g "同時に確定"` がすべて成功することを確認する
 - [ ] T045 quickstart.md §2（手での確認）と §2.4（初期化・準備の 2 度押し・取りやめ・S1 の講演モード・`docker run --network none`）を実施し、`specs/002-concurrent-acceptance/validation-results.md` に SC-001〜SC-008 の結果（SC-001 の所要時間、SC-005 の準備の時間、SC-002 の 100 回の結果、SC-006 のオフライン、SC-004 は反映までの時間を計測し、SC-007 はアンケートを実施するか見送るか（理由つき）、SC-008 は試行の要否と結果）を S1 の validation-results.md と同じ形式で記録する
-- [ ] T046 `docs/05-decisions.md` の技術検証項目 V-07 の結果を「確認済み（サーバーは HTTP の同時 PATCH 100 回、画面は 2 つのウィンドウからの同時確定 {回数}、specs/002 validation-results.md）」に更新する
+- [X] T046 `docs/05-decisions.md` の技術検証項目 V-07 の結果を「確認済み（サーバーは HTTP の同時 PATCH 100 回、画面は 2 つのウィンドウからの同時確定 {回数}、specs/002 validation-results.md）」に更新する
 
 ---
 

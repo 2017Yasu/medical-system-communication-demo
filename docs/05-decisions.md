@@ -56,5 +56,5 @@ S1 の実装（specs/001-lab-order-workflow）で確認した。結果の詳細�
 | V-04 | 組み込み Jetty 上で HAPI RestfulServer・Jakarta WebSocket・静的 UI の配信を同居させられること | 確認済み |
 | V-05 | 静的 UI（SPA のフォールバック）・FHIR・WebSocket・デモ制御のパスが衝突しないこと | 確認済み |
 | V-06 | ネットワークを切断した状態で、ビルド済みの Docker イメージから起動し、全シナリオを実行できること | 確認済み（`docker run --network none` で動作、E2E で外部通信 0 件） |
-| V-07 | 2 つのブラウザウィンドウから同時に PATCH したとき、必ず片方が 412 になること（S2 の再現性） | サーバー側は確認済み（同じ版への同時更新は必ず片方だけ成功、100 回繰り返し）。画面での再現は S2 で確認する |
+| V-07 | 2 つのブラウザウィンドウから同時に PATCH したとき、必ず片方が 412 になること（S2 の再現性） | **確認済み**。サーバーは HTTP の同時 PATCH 100 回（S2ScenarioIT）、画面は 2 つのウィンドウからの同時確定を繰り返し確認（s2-concurrent.spec.ts。回数は specs/002 validation-results.md） |
 | V-08 | React の開発サーバー（Vite）からコンテナ上の FHIR サーバー・WebSocket へプロキシして開発できること | 確認済み |

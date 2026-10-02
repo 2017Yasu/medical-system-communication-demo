@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 医療機関の FHIR サーバーと部門システム（電子カルテ・検体検査）の連携を、医療従事者にも分かりやすく見せるデモ。
 ドキュメント・UI 文言・コミットメッセージ以外のコード上の識別子は英語、ドキュメントと UI 文言は日本語。
-現在の実装範囲は S1（検体検査）。S2〜S5（排他制御の事故再現 UI、放射線の予約枠、処方調剤、Message Bundle）は `docs/` に設計のみ。
+現在の実装範囲は S1（検体検査）と S2（同時受付の排他制御）。S3〜S5（放射線の予約枠、処方調剤、Message Bundle）は `docs/` に設計のみ。
 
-`.specify/memory/constitution.md`（v1.0.1）が最優先。特に次を守る：
+`.specify/memory/constitution.md`（v1.1.0）が最優先。特に次を守る：
 - 画面同士は FHIR サーバー経由でのみ通信する（直接通信・独自バックエンド禁止）。デモの初期化・ポリシー変更（`/demo/*`）だけが例外。
 - 実行時に外部ネットワーク・CDN に依存しない（オフライン、`docker compose up` の 1 コマンド）。データはすべて架空。
 - 設計の変更は先に `docs/`（決定は `docs/05-decisions.md`）と `specs/` を更新してから実装する（原則 VIII）。
@@ -22,6 +22,7 @@ mvn verify                                       # 単体 + 統合テスト（fa
 mvn verify -Dit.test=S1ScenarioIT                # 統合テストを 1 クラスだけ
 mvn test -Dtest=IfMatchRuleTest                  # 単体テストを 1 クラスだけ
 mvn verify -Ds1.repeat=20                        # S1 系シナリオを 20 回繰り返す（SC-004）
+mvn verify -Dit.test=S2ScenarioIT -Ds2.repeat=100  # S2（同時確定は既定 100 回、S2-1・S2-3 は 20 回）
 mvn -DskipTests package                          # server/target/demo-server.jar（shade の実行可能 JAR）
 
 # UI — ui/ で実行
@@ -34,6 +35,7 @@ npm run build
 # E2E（Playwright。起動済みの http://localhost:8080 に対して実行。DEMO_URL で変更）
 npx playwright install chromium && npx playwright test
 npx playwright test tests/e2e/presentation.spec.ts -g "次へ"
+S2_REPEAT=100 npx playwright test tests/e2e/s2-concurrent.spec.ts   # S2（画面からの同時確定の繰り返し回数。既定 5）
 
 # 起動
 docker compose build && docker compose up        # http://localhost:8080/
@@ -70,8 +72,15 @@ scripts/fetch-jp-packages.sh [--check|--force]
 - `guide/`：自習モード。シナリオの `target.control` と画面の `data-guide` 属性が対応している（`tests/unit/scenarios.test.ts` が食い違いを検出する）。
 - `app/StageView`：電子カルテ・検体検査・通信モニタを 1 画面に並べる。医師/看護師の両画面を常に配置し表示だけ切り替える（通知の bind を外さないため）。
 
+### S2（同時受付）の要点
+- **ステージビューを使わない**（D-29）。`/control`（デモ制御パネル）・`/lis?tech=tech-a`・`/lis?tech=tech-b`・`/monitor` を別ウィンドウで開き、`docs/06-demo-procedures.md` に従って手で操作する。画面上の案内（講演モードの進行・自習ガイド）は無い。憲章 v1.1.0 の原則 V がこれを認めている。
+- 「S2-x の準備」ボタン（`ui/src/demo/prepare.ts`）が、初期化 → `PUT /demo/policy` → 依頼・採血（電子カルテとして FHIR に送る）を行う。サーバー側に準備用の API は無い。
+- `labSendsIfMatch`（`DemoPolicy`）は**サーバーの判定には使わない**。検体検査システムの画面だけが読む、「If-Match を付けるか」のデモ設定で、別ウィンドウ間で共有できる唯一の経路が `/demo/policy` のため置いている。
+- 受付は S1 も含め **GET → PATCH の 2 段階**（D-27）。`AcceptDraft`（`systems/lis/AcceptDraftPanel.tsx`）が受付を始めた時点の ETag を確定まで保持する（一覧の行の ETag は通知のたびに最新になるため使えない）。
+- 一覧の変化は `systems/shared/rowChanges.ts` が検出し、変更前 → 変更後を 10 秒表示する（D-28）。
+
 ## ドキュメントと仕様
 
 - `docs/`：設計（概要、シナリオ S1〜S5、アーキテクチャ、設計ルール＝状態遷移・表示ラベル・コード体系、決定事項と未決事項）。
-- `specs/001-lab-order-workflow/`：S1 の Spec Kit 成果物（spec / plan / research / data-model / contracts / quickstart / tasks / validation-results）。API・WebSocket・画面の契約は `contracts/`。
+- `specs/001-lab-order-workflow/`・`specs/002-concurrent-acceptance/`（S2）：Spec Kit 成果物（spec / plan / research / data-model / contracts / quickstart / tasks / validation-results）。API・WebSocket・画面の契約は `contracts/`。
 - 新しい機能は `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement` の流れ（`.specify/`、`.claude/skills/`）。
