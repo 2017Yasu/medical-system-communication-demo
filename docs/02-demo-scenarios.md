@@ -68,7 +68,7 @@ S2 で S1 と同じ場面を使って排他制御を見せられる。
 | 1 | 医師 X が血算を依頼 | 電子カルテ（医師） | `POST /`（Transaction Bundle：ServiceRequest + Task + Specimen） | SR: `active` / Task: `requested`、未採取（owner = 検査部） |
 | 2 | 検査部の画面に新着依頼が届く | （自動） | Subscription 通知 → LIS が `GET /Task/{id}` で中身を取得 | 変化なし |
 | 3 | 看護師 D が採血 | 電子カルテ（看護師） | `POST /`（Transaction Bundle：Specimen 更新 + Task 更新、どちらも `ifMatch`） | Specimen: 採取者・採取日時 / Task: `requested`、採取済 |
-| 4 | 技師 A が検体を受付 | LIS（技師 A） | `PATCH /Task/{id}` + `If-Match`（status・owner・businessStatus を更新） | Task: `accepted`、検体到着（owner = 技師 A） |
+| 4 | 技師 A が検体を受付 | LIS（技師 A） | 受付画面を開くと `GET /Task/{id}`（ETag を保持）→ 確定で `PATCH /Task/{id}` + `If-Match`（status・owner・businessStatus を更新）（D-27） | Task: `accepted`、検体到着（owner = 技師 A） |
 | 5 | 電子カルテに「受付済み」と表示 | （自動） | Subscription 通知 → 電子カルテが Task を取得 | 変化なし |
 | 6 | 測定開始 | LIS（技師 A） | `PATCH /Task/{id}` + `If-Match` | Task: `in-progress`、測定中 |
 | 7 | 結果を承認・報告 | LIS（技師 A） | `POST /`（Transaction Bundle：Observation × n + DiagnosticReport + Task 更新 + ServiceRequest 更新、更新はすべて `ifMatch`） | Obs/DR: `final` / Task: `completed`（output → DR） / SR: `completed` |
@@ -96,6 +96,8 @@ S2 で S1 と同じ場面を使って排他制御を見せられる。
 ## S2. 排他制御①：同時受付（P1）
 
 S1 のステップ 4（検体受付）を、技師 A と技師 B が**ほぼ同時に**行う場面。LIS 画面を 2 つ並べて操作する。
+受付は「受付画面を開く（Task を GET して版を保持）→ 確定（PATCH）」の 2 段階で（D-27）、両者が同じ版 v1 を開いてから確定することで、人の操作でも同時受付を再現できる。
+実演はステージビューを使わず、個別ウィンドウ（技師 A・技師 B・通信モニタ・デモ制御パネル）を並べ、手順書 [06-demo-procedures.md](06-demo-procedures.md) に従って手で操作する（D-29）。依頼・採血と設定の切り替えは、デモ制御パネルの「S2-x の準備」ボタンで行う（D-30）。
 
 ### S2-1. ルール無し（If-Match 任意・クライアントが付けない）→ Lost Update
 
@@ -106,7 +108,8 @@ S1 のステップ 4（検体受付）を、技師 A と技師 B が**ほぼ同�
 | T3 | `PATCH`（owner = 技師 A、accepted）→ `200` | | v2: accepted / 技師 A |
 | T4 | | `PATCH`（owner = 技師 B、accepted）→ `200` | v3: accepted / 技師 B |
 
-- 技師 A の画面は「自分が担当」と思い込んだまま。実際の担当は技師 B に上書きされている（**後勝ち**）。
+- 技師 A・技師 B のどちらにもエラーや警告は出ない。実際の担当は技師 B に上書きされている（**後勝ち**）。
+- 技師 A の一覧は Subscription 通知で取り直され、担当者が「技師 A → 技師 B」に変わったことをアニメーションで示す（D-28）。ただしこれは「表示が変わった」ことの強調であって、サーバーが上書きを検知したわけではない。
 - 通信モニタで Task の履歴（`_history`）を表示し、v2 が v3 で上書きされたことを見せる。
 
 ### S2-2. If-Match あり → 先勝ち・後発は 412
@@ -209,5 +212,5 @@ S1 のステップ 4（検体受付）を、技師 A と技師 B が**ほぼ同�
 | 通信モニタ | 通信の見える化 | システム間のシーケンス図（アニメーション）、リクエスト/レスポンス詳細（JSON）、リソースの版履歴 |
 | デモ制御パネル | 進行と設定 | シナリオ選択、ステップ送り/戻し、初期化、ポリシー切替（If-Match 必須、状態遷移チェック）、タイムアウト秒数 |
 
-- **ステージビュー**：講演用に、電子カルテ・部門システム・通信モニタを 1 画面に並べた 3 列のレイアウト。講演はこの 1 画面だけで行う（D-26）。S2 の間は電子カルテの列を技師 B の検体検査システムに差し替える。
-- **個別ウィンドウ**：各画面を別タブ・別ウィンドウで開くこともできる（自習・展示で外部モニタがある場合など）。
+- **ステージビュー**：講演用に、電子カルテ・部門システム・通信モニタを 1 画面に並べた 3 列のレイアウト。講演はこの 1 画面だけで行う（D-26）。ただし S2 はステージビューを使わず、個別ウィンドウを並べて手順書（[06-demo-procedures.md](06-demo-procedures.md)）に従って操作する（D-29）。
+- **個別ウィンドウ**：各画面を別タブ・別ウィンドウで開くこともできる（自習・展示で外部モニタがある場合、S2 の実演など）。
