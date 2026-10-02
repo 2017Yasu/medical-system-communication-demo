@@ -172,8 +172,8 @@ SC-002（同時確定 100 回）・SC-003（20 回連続）が自動テストを
 ## Phase 7: Polish & Cross-Cutting Concerns
 
 - [X] T043 [P] `CLAUDE.md` を更新する：「現在の実装範囲は S1（検体検査）」を「S1（検体検査）と S2（同時受付）」に、S2 の要点（S2 はステージビューを使わず `/control` と個別ウィンドウ・手順書 docs/06 で操作、`labSendsIfMatch` はサーバーの判定に使わないデモ設定、受付は GET → PATCH の 2 段階で `AcceptDraft` の ETag を使う）と、コマンド（`mvn verify -Dit.test=S2ScenarioIT -Ds2.repeat=100`、`S2_REPEAT=100 npx playwright test tests/e2e/s2-concurrent.spec.ts`）を追記する
-- [ ] T044 全体の回帰を実行する：UI をビルドして JAR を作り直し、`mvn verify -Ds1.repeat=20 -Ds2.repeat=100`、`npm test`、`npm run typecheck`、`npx playwright test`、`S2_REPEAT=100 npx playwright test tests/e2e/s2-concurrent.spec.ts -g "同時に確定"` がすべて成功することを確認する
-- [ ] T045 quickstart.md §2（手での確認）と §2.4（初期化・準備の 2 度押し・取りやめ・S1 の講演モード・`docker run --network none`）を実施し、`specs/002-concurrent-acceptance/validation-results.md` に SC-001〜SC-008 の結果（SC-001 の所要時間、SC-005 の準備の時間、SC-002 の 100 回の結果、SC-006 のオフライン、SC-004 は反映までの時間を計測し、SC-007 はアンケートを実施するか見送るか（理由つき）、SC-008 は試行の要否と結果）を S1 の validation-results.md と同じ形式で記録する
+- [X] T044 全体の回帰を実行する：UI をビルドして JAR を作り直し、`mvn verify -Ds1.repeat=20 -Ds2.repeat=100`、`npm test`、`npm run typecheck`、`npx playwright test`、`S2_REPEAT=100 npx playwright test tests/e2e/s2-concurrent.spec.ts -g "同時に確定"` がすべて成功することを確認する
+- [X] T045 quickstart.md §2（手での確認）と §2.4（初期化・準備の 2 度押し・取りやめ・S1 の講演モード・`docker run --network none`）を実施し、`specs/002-concurrent-acceptance/validation-results.md` に SC-001〜SC-008 の結果（SC-001 の所要時間、SC-005 の準備の時間、SC-002 の 100 回の結果、SC-006 のオフライン、SC-004 は反映までの時間を計測し、SC-007 はアンケートを実施するか見送るか（理由つき）、SC-008 は試行の要否と結果）を S1 の validation-results.md と同じ形式で記録する
 - [X] T046 `docs/05-decisions.md` の技術検証項目 V-07 の結果を「確認済み（サーバーは HTTP の同時 PATCH 100 回、画面は 2 つのウィンドウからの同時確定 {回数}、specs/002 validation-results.md）」に更新する
 
 ---
