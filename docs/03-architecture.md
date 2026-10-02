@@ -77,13 +77,13 @@ HAPI plain server は REST の入口（アノテーションによる振り分�
 | F5 | If-Match 必須ポリシー | S2-3 | ヘッダ無しの update / patch を `400` で拒否。デモ制御で ON/OFF |
 | F6 | PATCH（JSON Patch） | S1, S2, S4 | `@Patch` で受け、適用処理は `io.dogote:json-patch` を利用（D-21）。HAPI は `@Patch` の If-Match を `IdType` に設定しないため、ヘッダを自分で読む。If-Match を同様に扱う |
 | F7 | Transaction Bundle | S1, S3, S4 | `@Transaction`。`urn:uuid` 参照の解決、`entry.request.ifMatch` / `ifNoneExist` の処理、失敗時は全体を元に戻す |
-| F8 | 条件付き作成（If-None-Exist） | S3 | 単独リクエストと Transaction 内の両方 |
+| F8 | 条件付き作成（If-None-Exist） | —（サーバーは S1 の実装で対応済み。S3 では使わない。D-40） | 単独リクエストと Transaction 内の両方。一致するものがあれば作らずに既存を返す |
 | F9 | Task 状態遷移チェック | S1, S2 | [04-design-rules.md](04-design-rules.md#task-の状態遷移マトリクス) のマトリクスで判定。デモ制御で ON/OFF |
 | F10 | Subscription | S1〜S4 | 下記 [Subscription](#subscription) 参照 |
-| F11 | Slot 仮押さえのタイムアウト | S3 | スケジューラで `busy-tentative` の Slot を一定秒数後に `free` へ戻す |
+| F11 | Slot 仮押さえのタイムアウト | S3 | スケジューラで `busy-tentative` の Slot を一定秒数後に `free` へ戻す。通常の書き込みと同じロック・版の採番・Subscription 通知を通し、通信記録に送信元「FHIR サーバー（仮押さえの期限切れ）」として残す（D-37） |
 | F12 | `$process-message` | S5 | Message Bundle を受け、中のリソースを登録する |
 | F13 | 通信記録と配信 | 全シナリオ | `/fhir/*` のサーブレットフィルタでリクエスト/レスポンス（メソッド・URL・ヘッダ・本文・ステータス・所要時間・送信元画面）を記録し、WebSocket で通信モニタへ配信。送信元画面は UI が全要求に付ける `X-Demo-Client` ヘッダ（FHIR の処理には影響しない独自ヘッダ）で識別する |
-| F14 | デモ制御 API | 全シナリオ | 初期化、初期データ投入、ポリシー切替、タイムアウト秒数の変更。ポリシーには、サーバーの判定には使わず画面だけが読む「検体検査システムが If-Match を付けるか」（`labSendsIfMatch`、S2）も含める（別ウィンドウ間で設定を共有する唯一の経路のため）。S2 の準備（初期化 → ポリシー → 依頼・採血）はデモ制御パネルの画面（`/control`）が FHIR の要求として送り、サーバー側に準備用の API は作らない（specs/002 research R-01・R-02） |
+| F14 | デモ制御 API | 全シナリオ | 初期化、初期データ投入、ポリシー切替、タイムアウト秒数の変更。ポリシーには、サーバーの判定には使わず画面だけが読む「検体検査システムが If-Match を付けるか」（`labSendsIfMatch`、S2）も含める（別ウィンドウ間で設定を共有する唯一の経路のため）。S3 の電子カルテの予約方式（仮押さえを使う / Appointment を直接作る）も同じ扱いとする（D-36）。S2 の準備（初期化 → ポリシー → 依頼・採血）はデモ制御パネルの画面（`/control`）が FHIR の要求として送り、サーバー側に準備用の API は作らない（specs/002 research R-01・R-02） |
 | F15 | CapabilityStatement | — | HAPI の自動生成をそのまま利用 |
 
 ### 検索パラメータ（最小限）
@@ -96,7 +96,7 @@ HAPI plain server は REST の入口（アノテーションによる振り分�
 | Observation | `based-on`, `subject` | 結果の表示 |
 | MedicationRequest / MedicationDispense | `subject`, `status` | 処方・調剤の一覧 |
 | Slot | `schedule`, `status`, `start` | 予約枠カレンダー |
-| Appointment | `slot`, `status` | If-None-Exist の条件、予約一覧 |
+| Appointment | `slot`, `status` | 予約一覧（枠ごとの予約） |
 | Patient | `identifier`, `name` | 患者選択 |
 
 ### 同時実行の扱い
