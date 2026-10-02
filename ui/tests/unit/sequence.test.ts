@@ -60,7 +60,7 @@ describe("buildSequence", () => {
       http(4, "monitor", "GET", "/fhir/Task/1/_history"),
       http(5, "lis-tech-a", "PUT", "/fhir/Subscription/lis-lab-dept", 201),
     ], { showMonitor: true }).map((i) => i.label);
-    expect(labels).toEqual(["PATCH Task/1", "GET Task を検索", "GET Task/1", "GET Task/1 の履歴", "PUT Subscription/lis-lab-dept（通知の登録）"]);
+    expect(labels).toEqual(["PATCH Task/1（If-Match なし）", "GET Task を検索", "GET Task/1", "GET Task/1 の履歴", "PUT Subscription/lis-lab-dept（通知の登録）"]);
   });
 
   it("draws a notification from the server to the target screen's lane", () => {
@@ -117,5 +117,28 @@ describe("resourceRefsIn", () => {
       http(4, "ehr-doctor", "GET", "/fhir/Task?status=requested"),
     ]);
     expect(refs).toEqual(["ServiceRequest/2", "Task/1"]);
+  });
+});
+
+describe("version check annotations and 400/412 results (specs/002 R-07)", () => {
+  const withHeaders = (r: TrafficRecord, headers: Record<string, string>): TrafficRecord => ({ ...r, request: { ...r.request!, headers } });
+
+  it("shows the If-Match value on PATCH and PUT", () => {
+    const [item] = buildSequence([withHeaders(http(1, "lis-tech-a", "PATCH", "/fhir/Task/1"), { "If-Match": 'W/"2"' })]);
+    expect(item.label).toBe('PATCH Task/1（If-Match: W/"2"）');
+  });
+
+  it("shows when there is no If-Match", () => {
+    const [item] = buildSequence([http(1, "lis-tech-a", "PATCH", "/fhir/Task/1")]);
+    expect(item.label).toBe("PATCH Task/1（If-Match なし）");
+    const [put] = buildSequence([http(2, "lis-tech-a", "PUT", "/fhir/Task/1")]);
+    expect(put.label).toBe("PUT Task/1（If-Match なし）");
+  });
+
+  it("looks the header up regardless of case and leaves GET and Transaction alone", () => {
+    const [item] = buildSequence([withHeaders(http(1, "lis-tech-b", "PATCH", "/fhir/Task/1"), { "if-match": 'W/"7"' })]);
+    expect(item.label).toContain('If-Match: W/"7"');
+    expect(buildSequence([http(2, "lis-tech-a", "GET", "/fhir/Task/1")])[0].label).toBe("GET Task/1");
+    expect(buildSequence([http(3, "ehr-doctor", "POST", "/fhir")])[0].label).toBe("POST Transaction（一括登録）");
   });
 });

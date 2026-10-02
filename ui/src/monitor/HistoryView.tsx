@@ -3,8 +3,8 @@ import type { FhirResource, Task } from "fhir/r4";
 import { FhirClient, type Versioned } from "../fhir/client";
 import { businessStatusCode, businessStatusLabel, statusLabel, type StatusKind } from "../fhir/labels";
 import type { TrafficRecord } from "../realtime/types";
-import { findCause } from "./history";
-import { resourceRefsIn } from "./sequenceModel";
+import { diffVersions, findCause } from "./history";
+import { clientName, resourceRefsIn } from "./sequenceModel";
 
 const KIND: Record<string, StatusKind> = {
   Task: "task",
@@ -47,6 +47,7 @@ export function HistoryView({
   }, [current, trafficCount]);
 
   const [type, id] = current.split("/");
+  const diffs = useMemo(() => new Map(diffVersions(versions, records).map((d) => [d.versionId, d])), [versions, records]);
   return (
     <section className="panel" aria-label="版の履歴" data-testid="history-view">
       <h2>リソースの版の履歴</h2>
@@ -83,10 +84,16 @@ export function HistoryView({
                 const biz = businessStatusCode(task?.businessStatus);
                 const owner = task?.owner?.reference ?? "—";
                 const cause = findCause(records, type, id, vid);
+                const diff = diffs.get(vid);
+                const changed = (f: "status" | "businessStatus" | "owner") => diff?.changed.includes(f) ?? false;
+                const mark = (f: "status" | "businessStatus" | "owner") => ({
+                  "data-testid": `history-changed-${vid}-${f}`,
+                  style: { background: "var(--c-highlight)", fontWeight: 700 },
+                });
                 return (
                   <tr key={vid}>
                     <td>{vid}</td>
-                    <td>
+                    <td {...(changed("status") || changed("businessStatus") ? mark(changed("status") ? "status" : "businessStatus") : {})}>
                       {res.status ? `${KIND[type] ? statusLabel(KIND[type], res.status) : res.status} ` : ""}
                       {res.status && <span className="code">{res.status}</span>}
                       {biz && (
@@ -96,13 +103,16 @@ export function HistoryView({
                         </>
                       )}
                     </td>
-                    <td>{owner}</td>
+                    <td {...(changed("owner") ? mark("owner") : {})}>{owner}</td>
                     <td>{res.meta?.lastUpdated ? new Date(res.meta.lastUpdated).toLocaleTimeString("ja-JP") : ""}</td>
                     <td>
                       {cause ? (
-                        <button type="button" onClick={() => onJumpToTraffic(cause.seq)}>
-                          通信 {cause.seq}
-                        </button>
+                        <>
+                          <button type="button" onClick={() => onJumpToTraffic(cause.seq)}>
+                            通信 {cause.seq}
+                          </button>{" "}
+                          <span data-testid={`history-cause-${vid}`}>{clientName(cause.client)}</span>
+                        </>
                       ) : (
                         <span className="muted">—</span>
                       )}

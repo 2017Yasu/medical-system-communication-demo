@@ -92,17 +92,17 @@ SC-002（同時確定 100 回）・SC-003（20 回連続）が自動テストを
 
 ### Tests for User Story 1
 
-- [ ] T019 [P] [US1] `server/src/test/java/jp/example/demo/integration/S2ScenarioIT.java` を作り、S2-1 のテストを書く：`demo.reset()` → `setPolicy(false, false)` → `LabFlow.order("demo-taro", "CBC")` → `collect` → 作業の ETag を 1 回読んで技師 A・B の両方の「受付を始めた版」とする → `acceptWith(ids, "tech-a", null)` が 200 → `acceptWith(ids, "tech-b", null)` が 200 → 作業は `accepted`・`received`・`owner = PractitionerRole/tech-b`、版は準備後の版 + 2 → `GET /Task/{id}/_history` で、準備後の版 + 1 の担当が `tech-a`、+ 2 が `tech-b` → `taskTransitionCheck` が `true` のままであること。回数は `Integer.getInteger("s2.repeat", 20)`（S2-1・S2-3 の既定 20）で繰り返す（`S1ScenarioIT` の `s1.repeat` の書き方に合わせる）
-- [ ] T020 [P] [US1] `ui/tests/unit/rowChanges.test.ts` を作る：`diffRows(prev, next)` について、担当者だけが変わると `[{ field: "owner", before: "技師 A", after: "技師 B" }]`、状態と業務上の状態と担当者が変わると 3 項目（表示ラベルは docs/04、`ui/src/fhir/labels.ts` を使う）、`prev` が null（初回・初期化の直後）なら空、新しく現れた行・消えた行は対象外、何も変わらなければ空。`useRowChanges` の保持時間（`detectedAt` から 10 秒で消える）は、時刻を差し替えて確かめる
-- [ ] T021 [P] [US1] `ui/tests/unit/history.test.ts` に `diffVersions(versions, records)` のテストを追加する：新しい版が先頭の配列について、各版の `changed`（1 つ前の版から変わった `status`・`businessStatus`・`owner`。最古の版は空）と `causeClient`（その版を作った通信の `client`。`findCause` を使う）を返す
-- [ ] T022 [P] [US1] `ui/tests/unit/sequence.test.ts` にテストを追加する：`PATCH`・`PUT` の要求の矢印の注記に、`If-Match` ヘッダがあれば「（If-Match: W/"2"）」、無ければ「（If-Match なし）」が付く。`GET`・`POST`（Transaction）には付かない
+- [X] T019 [P] [US1] `server/src/test/java/jp/example/demo/integration/S2ScenarioIT.java` を作り、S2-1 のテストを書く：`demo.reset()` → `setPolicy(false, false)` → `LabFlow.order("demo-taro", "CBC")` → `collect` → 作業の ETag を 1 回読んで技師 A・B の両方の「受付を始めた版」とする → `acceptWith(ids, "tech-a", null)` が 200 → `acceptWith(ids, "tech-b", null)` が 200 → 作業は `accepted`・`received`・`owner = PractitionerRole/tech-b`、版は準備後の版 + 2 → `GET /Task/{id}/_history` で、準備後の版 + 1 の担当が `tech-a`、+ 2 が `tech-b` → `taskTransitionCheck` が `true` のままであること。回数は `Integer.getInteger("s2.repeat", 20)`（S2-1・S2-3 の既定 20）で繰り返す（`S1ScenarioIT` の `s1.repeat` の書き方に合わせる）
+- [X] T020 [P] [US1] `ui/tests/unit/rowChanges.test.ts` を作る：`diffRows(prev, next)` について、担当者だけが変わると `[{ field: "owner", before: "技師 A", after: "技師 B" }]`、状態と業務上の状態と担当者が変わると 3 項目（表示ラベルは docs/04、`ui/src/fhir/labels.ts` を使う）、`prev` が null（初回・初期化の直後）なら空、新しく現れた行・消えた行は対象外、何も変わらなければ空。`useRowChanges` の保持時間（`detectedAt` から 10 秒で消える）は、時刻を差し替えて確かめる
+- [X] T021 [P] [US1] `ui/tests/unit/history.test.ts` に `diffVersions(versions, records)` のテストを追加する：新しい版が先頭の配列について、各版の `changed`（1 つ前の版から変わった `status`・`businessStatus`・`owner`。最古の版は空）と `causeClient`（その版を作った通信の `client`。`findCause` を使う）を返す
+- [X] T022 [P] [US1] `ui/tests/unit/sequence.test.ts` にテストを追加する：`PATCH`・`PUT` の要求の矢印の注記に、`If-Match` ヘッダがあれば「（If-Match: W/"2"）」、無ければ「（If-Match なし）」が付く。`GET`・`POST`（Transaction）には付かない
 
 ### Implementation for User Story 1
 
-- [ ] T023 [US1] `ui/src/systems/shared/rowChanges.ts` を作る：`RowChange`（data-model.md §5）、純粋関数 `diffRows(prev: OrderRow[] | null, next: OrderRow[]): RowChange[]`（作業の id で突き合わせ、`status`・`businessStatus`・`owner` を表示ラベルで比べる）、フック `useRowChanges(rows, resetKey)`（取得のたびに比べ、`RowChange` を作業の id ごとに 10 秒保持し、次の変更で置き換える。`demo.reset` の後と初回は比べない）。T020 を通す
-- [ ] T024 [US1] 一覧の変化を表示する：`ui/src/systems/lis/LisScreen.tsx` の各行に、`RowChange` があればクラス `row-changed` を付け、作業の状態の欄に変わった項目ごとの 1 行（`data-testid="row-change-{srId}"`、例：「担当：技師 A → 技師 B」「状態：依頼済み requested → 受付済み accepted」）を表示する。`ui/src/styles/components.css` に `@keyframes row-changed`（背景の点滅 1.2 秒 × 2）と `.row-changed` を追加し、`@media (prefers-reduced-motion: reduce)` では点滅させない。赤色・警告アイコンは使わない（D-28）
-- [ ] T025 [P] [US1] 版の履歴の差分：`ui/src/monitor/history.ts` に `VersionDiff`（data-model.md §6）と `diffVersions` を追加し、`ui/src/monitor/HistoryView.tsx` で変わったセルを強調表示する（`data-testid="history-changed-{versionId}-{field}"`）。「この版を作った通信」の列に送信元の画面名（`clientName(cause.client)`、例：「技師 B」）を併記する。T021 を通す
-- [ ] T026 [P] [US1] `ui/src/monitor/sequenceModel.ts` の `operationLabel` の呼び出し元で、`PUT`・`PATCH` の要求に `If-Match` の注記を付ける（ヘッダ名は大文字小文字を区別せずに探す）。T022 を通す
+- [X] T023 [US1] `ui/src/systems/shared/rowChanges.ts` を作る：`RowChange`（data-model.md §5）、純粋関数 `diffRows(prev: OrderRow[] | null, next: OrderRow[]): RowChange[]`（作業の id で突き合わせ、`status`・`businessStatus`・`owner` を表示ラベルで比べる）、フック `useRowChanges(rows, resetKey)`（取得のたびに比べ、`RowChange` を作業の id ごとに 10 秒保持し、次の変更で置き換える。`demo.reset` の後と初回は比べない）。T020 を通す
+- [X] T024 [US1] 一覧の変化を表示する：`ui/src/systems/lis/LisScreen.tsx` の各行に、`RowChange` があればクラス `row-changed` を付け、作業の状態の欄に変わった項目ごとの 1 行（`data-testid="row-change-{srId}"`、例：「担当：技師 A → 技師 B」「状態：依頼済み requested → 受付済み accepted」）を表示する。`ui/src/styles/components.css` に `@keyframes row-changed`（背景の点滅 1.2 秒 × 2）と `.row-changed` を追加し、`@media (prefers-reduced-motion: reduce)` では点滅させない。赤色・警告アイコンは使わない（D-28）
+- [X] T025 [P] [US1] 版の履歴の差分：`ui/src/monitor/history.ts` に `VersionDiff`（data-model.md §6）と `diffVersions` を追加し、`ui/src/monitor/HistoryView.tsx` で変わったセルを強調表示する（`data-testid="history-changed-{versionId}-{field}"`）。「この版を作った通信」の列に送信元の画面名（`clientName(cause.client)`、例：「技師 B」）を併記する。T021 を通す
+- [X] T026 [P] [US1] `ui/src/monitor/sequenceModel.ts` の `operationLabel` の呼び出し元で、`PUT`・`PATCH` の要求に `If-Match` の注記を付ける（ヘッダ名は大文字小文字を区別せずに探す）。T022 を通す
 - [ ] T027 [US1] `ui/tests/e2e/s2-concurrent.spec.ts` を作り、S2-1 のテストを書く（`PageBag` で `/control`・`/lis?tech=tech-a`・`/lis?tech=tech-b`・`/monitor` を別々のコンテキストで開く）：「S2-1 の準備」→ 両方の見出しが「版の確認：付けない（デモ設定）」→ 技師 A・B の順に「受付」→ 両方の確認欄に同じ版 → 技師 A「受付を確定」→ 技師 B の確認欄が開いたまま → 技師 B「受付を確定」→ エラー表示が無い → 技師 A の `row-change-{srId}` に「技師 A → 技師 B」→ 通信モニタに「If-Match なし」の PATCH が 2 件（送信元がそれぞれ「技師 A」「技師 B」と区別して表示される。FR-002）、どちらも成功 → 版の履歴の最新の版で担当のセルが強調され「技師 B」
 
 **Checkpoint**: S2-1 を 4 つのウィンドウで再現できる（MVP：事故の再現）
@@ -117,7 +117,7 @@ SC-002（同時確定 100 回）・SC-003（20 回連続）が自動テストを
 
 ### Tests for User Story 2
 
-- [ ] T028 [P] [US2] `server/src/test/java/jp/example/demo/integration/S2ScenarioIT.java` に S2-2 のテストを追加する：(a) 順番の確定：`setPolicy(true, true)` の準備の後、両者が同じ ETag で `acceptWith` → 技師 A が 200、技師 B が 412（OperationOutcome 付き）→ 作業は `owner = tech-a` で版は準備後の版 + 1 のまま。(b) 同時の確定：2 つのスレッドが `CountDownLatch` で揃ってから同じ ETag の `acceptWith`（技師 A・技師 B）を送り、ちょうど 1 つが 200・1 つが 412、作業の担当が 200 を受けた側であることを、`Integer.getInteger("s2.repeat", 100)` 回（各回は準備からやり直す）確かめる
+- [X] T028 [P] [US2] `server/src/test/java/jp/example/demo/integration/S2ScenarioIT.java` に S2-2 のテストを追加する：(a) 順番の確定：`setPolicy(true, true)` の準備の後、両者が同じ ETag で `acceptWith` → 技師 A が 200、技師 B が 412（OperationOutcome 付き）→ 作業は `owner = tech-a` で版は準備後の版 + 1 のまま。(b) 同時の確定：2 つのスレッドが `CountDownLatch` で揃ってから同じ ETag の `acceptWith`（技師 A・技師 B）を送り、ちょうど 1 つが 200・1 つが 412、作業の担当が 200 を受けた側であることを、`Integer.getInteger("s2.repeat", 100)` 回（各回は準備からやり直す）確かめる
 - [ ] T029 [P] [US2] `ui/tests/unit/errors.test.ts` にテストを追加する：`acceptConflictError(latestTask)` が、最新が `accepted` で担当が `PractitionerRole/tech-a` なら「この依頼は既に 技師 A が受付済みです」（`httpLabel` は「412 Precondition Failed」、`kind` は `conflict`）、`in-progress` 以降で担当が技師でも同様、`cancelled` や担当が検査部なら S1 の 412 の文言を返す
 
 ### Implementation for User Story 2
@@ -138,7 +138,7 @@ SC-002（同時確定 100 回）・SC-003（20 回連続）が自動テストを
 
 ### Tests for User Story 3
 
-- [ ] T033 [P] [US3] `server/src/test/java/jp/example/demo/integration/S2ScenarioIT.java` に S2-3 のテストを追加する：`setPolicy(true, false)` の準備の後、`acceptWith(ids, "tech-a", null)` が 400（OperationOutcome の diagnostics に `If-Match` を含む）、作業は版・状態・担当とも変わらない → `setPolicy(false, null)` の後、同じ要求が 200 → 別の準備で `setPolicy(true, …)` のまま正しい ETag の `acceptWith` が 200（US3 シナリオ 4）。回数は `s2.repeat`（既定 20）
+- [X] T033 [P] [US3] `server/src/test/java/jp/example/demo/integration/S2ScenarioIT.java` に S2-3 のテストを追加する：`setPolicy(true, false)` の準備の後、`acceptWith(ids, "tech-a", null)` が 400（OperationOutcome の diagnostics に `If-Match` を含む）、作業は版・状態・担当とも変わらない → `setPolicy(false, null)` の後、同じ要求が 200 → 別の準備で `setPolicy(true, …)` のまま正しい ETag の `acceptWith` が 200（US3 シナリオ 4）。回数は `s2.repeat`（既定 20）
 - [ ] T034 [P] [US3] `ui/tests/unit/errors.test.ts` の 400（If-Match 無し）の期待値を「版の確認（If-Match）が無い更新はサーバーが受け付けません」に変える。`ui/tests/unit/sequence.test.ts` に、応答本文の diagnostics に `If-Match` を含む 400 は「400 版の確認が必要」、それ以外の 400 は「400 要求の形式が不正」になるテストを追加する
 
 ### Implementation for User Story 3

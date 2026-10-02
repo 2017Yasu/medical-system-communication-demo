@@ -6,6 +6,7 @@ import { FhirError, type ClientId } from "../../fhir/client";
 import { beginAccept, confirmAccept, rejectTask, rerunTask, startTask } from "../../fhir/labActions";
 import { monitorSocket } from "../../realtime/monitorSocket";
 import { useLiveData } from "../../realtime/useLiveData";
+import { useRowChanges } from "../shared/rowChanges";
 import { LIS_OWNERS, loadLabOrders, orderNumber, orderedSetNames, taskBusinessStatus, type OrderRow } from "../shared/orders";
 import { SrStatus, TaskStatus, ownerLabel } from "../shared/StatusBadges";
 import { AcceptDraftPanel, type AcceptDraft } from "./AcceptDraftPanel";
@@ -13,6 +14,8 @@ import { RejectDialog } from "./RejectDialog";
 import { ResultEntry } from "./ResultEntry";
 
 export type Tech = "tech-a" | "tech-b";
+
+const FIELD_LABEL = { status: "状態", businessStatus: "業務上の状態", owner: "担当" } as const;
 
 /** 検体検査システム：検査部の作業一覧と、受付・測定開始・結果報告（FR-012〜FR-015）。 */
 export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: boolean }) {
@@ -31,6 +34,7 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
     load: loadLabOrders,
   });
   const { policy } = usePolicy();
+  const changes = useRowChanges(live.data);
   const [draft, setDraft] = useState<AcceptDraft | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [entryId, setEntryId] = useState<string | null>(null);
@@ -116,8 +120,9 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
                   const task = row.task?.resource;
                   const biz = taskBusinessStatus(task);
                   const busy = busyId === id;
+                  const change = changes.find((c) => c.srId === id);
                   return (
-                    <tr key={id} data-testid={`task-${id}`}>
+                    <tr key={id} data-testid={`task-${id}`} className={change ? "row-changed" : undefined}>
                       <td>
                         <div>
                           <strong>{row.patientName}</strong>
@@ -131,6 +136,15 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
                       <td>
                         <TaskStatus task={task} />
                         <div className="muted">担当：{ownerLabel(row)}</div>
+                        {change && (
+                          <div className="row-change" data-testid={`row-change-${id}`}>
+                            {change.fields.map((f) => (
+                              <div key={f.field}>
+                                {FIELD_LABEL[f.field]}：{f.before} → {f.after}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         <div style={{ marginTop: "var(--sp-1)" }}>
                         {task?.status === "requested" && biz === "not-collected" && (
                           <>
