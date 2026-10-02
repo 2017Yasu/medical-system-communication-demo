@@ -58,3 +58,13 @@ describe("FhirClient", () => {
     expect((fetchFn.mock.calls[0] as unknown as [string])[0]).toBe("/fhir/Task?requester=Practitioner%2Fdr-x");
   });
 });
+
+describe("FhirClient caching", () => {
+  it("never uses the browser HTTP cache (a stale GET would break the version check)", async () => {
+    const fetchFn = mockFetch(200, { resourceType: "Task", id: "1" });
+    const client = new FhirClient("lis-tech-b", "/fhir", fetchFn as unknown as typeof fetch);
+    await client.read("Task", "1");
+    const [, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(init.cache).toBe("no-store");
+  });
+});

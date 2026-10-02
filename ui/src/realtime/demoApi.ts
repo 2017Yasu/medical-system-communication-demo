@@ -21,3 +21,16 @@ export async function fetchTraffic(after = 0): Promise<TrafficRecord[]> {
   }
   return (await res.json()).records as TrafficRecord[];
 }
+
+/** ポリシーを部分更新する（指定した項目だけを変える）。 */
+export async function putPolicy(partial: Partial<DemoPolicy>): Promise<DemoPolicy> {
+  const res = await fetch("/demo/policy", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(partial),
+  });
+  if (!res.ok) {
+    throw new Error(`設定を変更できません（${res.status}）`);
+  }
+  return res.json();
+}

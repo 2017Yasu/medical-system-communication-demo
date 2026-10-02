@@ -71,7 +71,8 @@ public final class DemoControlServlet extends HttpServlet {
         }
         Boolean ifMatch = optionalBoolean(body, "ifMatchRequired");
         Boolean transition = optionalBoolean(body, "taskTransitionCheck");
-        control.updatePolicy(ifMatch, transition);
+        Boolean labSendsIfMatch = optionalBoolean(body, "labSendsIfMatch");
+        control.updatePolicy(ifMatch, transition, labSendsIfMatch);
         json(resp, 200, policyJson());
     }
 
@@ -83,6 +84,7 @@ public final class DemoControlServlet extends HttpServlet {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("ifMatchRequired", control.policy().ifMatchRequired());
         m.put("taskTransitionCheck", control.policy().taskTransitionCheck());
+        m.put("labSendsIfMatch", control.policy().labSendsIfMatch());
         return m;
     }
 

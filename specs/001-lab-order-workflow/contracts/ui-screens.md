@@ -39,7 +39,7 @@
 
 1. 開いたとき：自分の Subscription を `GET` → 404 なら `PUT` で作成 → `/ws/subscription` で `bind` → 表示データを検索で取得。
 2. `ping` を受けたとき：表示データを取り直す。
-3. 操作するとき：表示中のリソースの `ETag` を保持し、更新には `If-Match`（Transaction では `ifMatch`）を付ける。
+3. 操作するとき：表示中のリソースの `ETag` を保持し、更新には `If-Match`（Transaction では `ifMatch`）を付ける。受付だけは、受付を始めた時点で取得した ETag を確定まで使う（specs/002、D-27）。
 4. `412` のとき：「他の利用者が先に更新しました」と表示して最新を取り直す。自動でやり直さない（FR-004）。
 5. `demo.reset` を受けたとき：表示を初期状態に戻し、1. からやり直す。
 
@@ -119,7 +119,7 @@ type TrafficCondition =
   | 1 | 医師 X が血算を依頼 | `ehr-doctor` | `http` `ehr-doctor` `POST` `Bundle` |
   | 2 | 検査部の画面に新着依頼が届く | `auto` | `notification` → `lis-tech-a`、`http` `lis-tech-a` `GET` `Task` |
   | 3 | 看護師 D が採血 | `ehr-nurse` | `http` `ehr-nurse` `POST` `Bundle` |
-  | 4 | 技師 A が検体を受付 | `lis-tech-a` | `http` `lis-tech-a` `PATCH` `Task` |
+  | 4 | 技師 A が検体を受付（受付を始める `GET` → 確定 `PATCH` の 2 段階。specs/002、D-27） | `lis-tech-a` | `http` `lis-tech-a` `PATCH` `Task` |
   | 5 | 電子カルテに「受付済み」と表示 | `auto` | `notification` → `ehr-doctor`、`http` `ehr-doctor` `GET` `Task` |
   | 6 | 測定開始 | `lis-tech-a` | `http` `lis-tech-a` `PATCH` `Task` |
   | 7 | 結果を承認・報告 | `lis-tech-a` | `http` `lis-tech-a` `POST` `Bundle` |

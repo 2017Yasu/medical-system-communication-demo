@@ -77,4 +77,9 @@ test("自習モード：案内と違う操作をすると、案内に戻るよ�
   await ehr(page).getByRole("button", { name: "採血を記録" }).click();
   await expect(page.getByTestId("guide-instruction")).toContainText("技師 A が検体を受付", { timeout: 8000 });
   await expect(page.getByTestId("guide-nudge")).toHaveCount(0);
+  // 受付は 2 段階：「受付」で受付を始めると、次は「受付を確定」が強調される（D-27）
+  const lisRow = lis(page).getByTestId("task-1");
+  await expect(lisRow.getByRole("button", { name: "受付", exact: true })).toHaveAttribute("data-guide-active", "true", { timeout: 3000 });
+  await lisRow.getByRole("button", { name: "受付", exact: true }).click();
+  await expect(lisRow.getByRole("button", { name: "受付を確定" })).toHaveAttribute("data-guide-active", "true", { timeout: 3000 });
 });

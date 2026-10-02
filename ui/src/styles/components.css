@@ -31,3 +31,11 @@ select, input[type="number"], input[type="text"] { font: inherit; padding: var(-
 .row { display: flex; gap: var(--sp-3); align-items: center; flex-wrap: wrap; }
 [data-guide-active="true"] { outline: 4px solid #f6b800; outline-offset: 2px; animation: guide-pulse 1.2s ease-in-out infinite; }
 @keyframes guide-pulse { 50% { outline-color: transparent; } }
+
+/* 通知で一覧が取り直されて、担当者・状態が変わった行（D-28）。警告ではなく、表示が変わったことの強調。 */
+.row-changed > td { animation: row-changed-flash 1.2s ease-in-out 2; }
+@keyframes row-changed-flash { 0%, 100% { background: transparent; } 50% { background: var(--c-highlight); } }
+.row-change { margin-top: var(--sp-1); padding: 2px var(--sp-2); border-left: 4px solid var(--c-primary); background: var(--c-highlight); font-size: var(--fs-small); }
+@media (prefers-reduced-motion: reduce) {
+  .row-changed > td { animation: none; background: var(--c-highlight); }
+}

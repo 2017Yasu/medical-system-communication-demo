@@ -180,4 +180,49 @@ class TrafficMonitorIT {
         JsonNode last = logRecords().get(logRecords().size() - 1);
         assertThat(last.get("demoEvent").get("event").asText()).isEqualTo("policy");
     }
+
+    private JsonNode putPolicy(String body) throws Exception {
+        return DemoServerExtension.JSON.readTree(
+                demo.raw("PUT", "/demo/policy", Map.of("Content-Type", "application/json"), body).body());
+    }
+
+    @Test
+    void labSendsIfMatchDefaultsToTrueAndIsReturnedWithTheOtherPolicies() throws Exception {
+        JsonNode policy = DemoServerExtension.JSON.readTree(demo.raw("GET", "/demo/policy", Map.of(), null).body());
+        assertThat(policy.get("ifMatchRequired").asBoolean()).isTrue();
+        assertThat(policy.get("taskTransitionCheck").asBoolean()).isTrue();
+        assertThat(policy.get("labSendsIfMatch").asBoolean()).isTrue();
+    }
+
+    @Test
+    void policyUpdateIsPartialAndBroadcastsAllThreeFields() throws Exception {
+        WsClient monitor = demo.connect("/ws/monitor");
+        JsonNode result = putPolicy("{\"labSendsIfMatch\":false}");
+        assertThat(result.get("labSendsIfMatch").asBoolean()).isFalse();
+        assertThat(result.get("ifMatchRequired").asBoolean()).isTrue();
+        assertThat(result.get("taskTransitionCheck").asBoolean()).isTrue();
+
+        String msg = monitor.await(m -> m.contains("\"demo.policy\""), 3000);
+        assertThat(msg).isNotNull();
+        JsonNode policy = DemoServerExtension.JSON.readTree(msg).get("policy");
+        assertThat(policy.get("labSendsIfMatch").asBoolean()).isFalse();
+        assertThat(policy.get("ifMatchRequired").asBoolean()).isTrue();
+        assertThat(policy.get("taskTransitionCheck").asBoolean()).isTrue();
+
+        JsonNode detail = logRecords().get(logRecords().size() - 1).get("demoEvent").get("detail");
+        assertThat(detail.get("labSendsIfMatch").asBoolean()).isFalse();
+        assertThat(detail.get("ifMatchRequired").asBoolean()).isTrue();
+        assertThat(detail.get("taskTransitionCheck").asBoolean()).isTrue();
+    }
+
+    @Test
+    void nonBooleanLabSendsIfMatchIsIgnoredAndResetRestoresDefaults() throws Exception {
+        assertThat(putPolicy("{\"labSendsIfMatch\":\"no\"}").get("labSendsIfMatch").asBoolean()).isTrue();
+        putPolicy("{\"ifMatchRequired\":false,\"labSendsIfMatch\":false}");
+        demo.reset();
+        JsonNode policy = DemoServerExtension.JSON.readTree(demo.raw("GET", "/demo/policy", Map.of(), null).body());
+        assertThat(policy.get("ifMatchRequired").asBoolean()).isTrue();
+        assertThat(policy.get("taskTransitionCheck").asBoolean()).isTrue();
+        assertThat(policy.get("labSendsIfMatch").asBoolean()).isTrue();
+    }
 }

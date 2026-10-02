@@ -43,7 +43,10 @@ public final class MonitorBroadcaster {
                 "type",
                 "demo.policy",
                 "policy",
-                Map.of("ifMatchRequired", policy.ifMatchRequired(), "taskTransitionCheck", policy.taskTransitionCheck())));
+                Map.of(
+                        "ifMatchRequired", policy.ifMatchRequired(),
+                        "taskTransitionCheck", policy.taskTransitionCheck(),
+                        "labSendsIfMatch", policy.labSendsIfMatch())));
     }
 
     private void send(Object message) {

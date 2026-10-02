@@ -124,6 +124,8 @@ export class FhirClient {
       res = await this.fetchFn(`${this.baseUrl}${path}`, {
         method,
         headers,
+        // ブラウザの HTTP キャッシュを使わない：受付を始めるときの GET や 412 の後の取り直しが古い応答を返すと、版の確認が成り立たない
+        cache: "no-store",
         body: opts?.body === undefined ? undefined : JSON.stringify(opts.body),
       });
     } catch {

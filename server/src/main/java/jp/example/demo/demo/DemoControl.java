@@ -46,15 +46,20 @@ public final class DemoControl {
         return seed.size();
     }
 
-    public synchronized void updatePolicy(Boolean ifMatchRequired, Boolean taskTransitionCheck) {
+    public synchronized void updatePolicy(Boolean ifMatchRequired, Boolean taskTransitionCheck, Boolean labSendsIfMatch) {
         if (ifMatchRequired != null) {
             policy.setIfMatchRequired(ifMatchRequired);
         }
         if (taskTransitionCheck != null) {
             policy.setTaskTransitionCheck(taskTransitionCheck);
         }
+        if (labSendsIfMatch != null) {
+            policy.setLabSendsIfMatch(labSendsIfMatch);
+        }
         traffic.add(traffic.demoEvent("policy", java.util.Map.of(
-                "ifMatchRequired", policy.ifMatchRequired(), "taskTransitionCheck", policy.taskTransitionCheck())));
+                "ifMatchRequired", policy.ifMatchRequired(),
+                "taskTransitionCheck", policy.taskTransitionCheck(),
+                "labSendsIfMatch", policy.labSendsIfMatch())));
         monitor.policy(policy);
     }
 

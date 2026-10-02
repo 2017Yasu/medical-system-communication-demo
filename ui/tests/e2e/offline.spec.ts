@@ -16,10 +16,19 @@ test("全画面を操作しても、外部へのリクエストは 0 件で、�
   });
   await page.request.post("/demo/reset");
 
-  for (const path of ["/", "/ehr?role=doctor", "/ehr?role=nurse", "/lis?tech=tech-a", "/lis?tech=tech-b", "/monitor"]) {
+  for (const path of ["/", "/ehr?role=doctor", "/ehr?role=nurse", "/lis?tech=tech-a", "/lis?tech=tech-b", "/monitor", "/control"]) {
     await page.goto(path);
     await expect(page.locator("h1").first()).toBeVisible();
   }
+  // S2：制御パネルの準備ボタンと、2 段階の受付（specs/002）
+  await page.goto("/control");
+  await page.getByTestId("btn-prepare-s2-2").click();
+  await expect(page.getByTestId("prepare-status")).toContainText("の準備ができました", { timeout: 15000 });
+  await page.goto("/lis?tech=tech-a");
+  await page.getByTestId("task-1").getByRole("button", { name: "受付", exact: true }).click();
+  await page.getByTestId("accept-confirm-1").click();
+  await expect(page.getByTestId("task-1")).toContainText("受付済み");
+  await page.request.post("/demo/reset");
   // ステージビューでシナリオを少し進める
   await page.goto("/stage?mode=presentation");
   await page.waitForTimeout(1200);

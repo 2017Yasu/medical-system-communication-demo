@@ -32,7 +32,18 @@ export function Launcher() {
           <li><Link to="/lis?tech=tech-a">検体検査システム（技師 A）</Link></li>
           <li><Link to="/lis?tech=tech-b">検体検査システム（技師 B）</Link></li>
           <li><Link to="/monitor">通信モニタ</Link></li>
+          <li><Link to="/control">デモ制御パネル</Link></li>
         </ul>
+      </section>
+      <section className="panel" aria-label="S2 同時受付で開くウィンドウ">
+        <h2>S2 同時受付で開くウィンドウ</h2>
+        <ul>
+          <li><Link to="/control">デモ制御パネル</Link></li>
+          <li><Link to="/lis?tech=tech-a">検体検査システム（技師 A）</Link></li>
+          <li><Link to="/lis?tech=tech-b">検体検査システム（技師 B）</Link></li>
+          <li><Link to="/monitor">通信モニタ</Link></li>
+        </ul>
+        <p className="muted">操作の手順は docs/06-demo-procedures.md を参照してください。</p>
       </section>
     </main>
   );

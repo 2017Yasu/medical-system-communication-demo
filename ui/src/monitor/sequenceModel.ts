@@ -54,11 +54,12 @@ const RESULT: Record<number, string> = {
   422: "業務ルール違反",
 };
 
-export function resultText(status: number): string {
+export function resultText(status: number, body = ""): string {
+  if (status === 400 && body.includes("If-Match")) return "400 版の確認が必要";
   return `${status} ${RESULT[status] ?? (status >= 500 ? "サーバーエラー" : status >= 400 ? "エラー" : "成功")}`;
 }
 
-function operationLabel(method: string, url: string): string {
+function operationLabel(method: string, url: string, headers: Record<string, string> = {}): string {
   const path = url.replace(/^\/fhir\/?/, "");
   const [pathOnly] = path.split("?");
   const isSearch = path.includes("?") || (!pathOnly.includes("/") && method === "GET" && pathOnly !== "");
@@ -67,6 +68,10 @@ function operationLabel(method: string, url: string): string {
   if (pathOnly === "metadata") return "GET metadata";
   if (method === "GET" && isSearch && !pathOnly.includes("/")) return `GET ${pathOnly} を検索`;
   if (method === "PUT" && pathOnly.startsWith("Subscription/")) return `PUT ${pathOnly}（通知の登録）`;
+  if (method === "PUT" || method === "PATCH") {
+    const key = Object.keys(headers).find((k) => k.toLowerCase() === "if-match");
+    return `${method} ${pathOnly}（${key ? `If-Match: ${headers[key]}` : "If-Match なし"}）`;
+  }
   return `${method} ${pathOnly}`;
 }
 
@@ -81,9 +86,9 @@ export function buildSequence(records: TrafficRecord[], options: SequenceOptions
         kind: "http",
         from: laneOf(record.client),
         to: "server",
-        label: operationLabel(record.request.method, record.request.url),
+        label: operationLabel(record.request.method, record.request.url, record.request.headers),
         operator: clientName(record.client),
-        result: resultText(record.response.status),
+        result: resultText(record.response.status, record.response.body),
         ok: record.response.status < 400,
         record,
       });
