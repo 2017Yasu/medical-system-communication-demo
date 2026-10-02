@@ -98,6 +98,15 @@ describe("buildSequence", () => {
   });
 });
 
+describe("resultText for 400 (specs/002 R-07)", () => {
+  it("tells a missing If-Match apart from other bad requests", () => {
+    const body = '{"resourceType":"OperationOutcome","issue":[{"diagnostics":"更新の前提となる版（If-Match）が指定されていません"}]}';
+    expect(resultText(400, body)).toBe("400 版の確認が必要");
+    expect(resultText(400, '{"issue":[{"diagnostics":"Bundle.entry[1]: 参照を解決できません"}]}')).toBe("400 要求の形式が不正");
+    expect(resultText(400)).toBe("400 要求の形式が不正");
+  });
+});
+
 describe("resultText", () => {
   it("maps statuses (docs/04 HTTP ステータス)", () => {
     expect(resultText(200)).toBe("200 成功");

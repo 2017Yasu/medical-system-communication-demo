@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router";
 import { ErrorBanner } from "../../app/ErrorBanner";
 import { usePolicy } from "../../demo/usePolicy";
 import { FhirError, type ClientId } from "../../fhir/client";
+import { acceptConflictError } from "../../fhir/errors";
 import { beginAccept, confirmAccept, rejectTask, rerunTask, startTask } from "../../fhir/labActions";
 import { monitorSocket } from "../../realtime/monitorSocket";
 import { useLiveData } from "../../realtime/useLiveData";
@@ -51,8 +52,9 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
       await live.reload();
     } catch (e) {
       if (e instanceof FhirError) {
-        live.setError(e, operation);
+        // 取り直し（成功するとエラー表示を消す）の後にエラーを出して、利用者が読めるように残す
         await live.reload();
+        live.setError(e, operation);
       } else throw e;
     } finally {
       setBusyId(null);
@@ -72,7 +74,16 @@ export function LisScreen({ tech, embedded = false }: { tech?: Tech; embedded?: 
       const d = draft;
       if (!d || !policy) return;
       setDraft(null);
-      await confirmAccept(live.client, d.task, current, policy.labSendsIfMatch);
+      try {
+        await confirmAccept(live.client, d.task, current, policy.labSendsIfMatch);
+      } catch (e) {
+        if (e instanceof FhirError && e.status === 412) {
+          // 誰が先に受付したかを最新の作業から示す。自動ではやり直さない（FR-013）
+          const latest = await beginAccept(live.client, d.task.resource.id!).catch(() => null);
+          throw new FhirError(latest ? acceptConflictError(latest.resource) : e.display, 412, e.outcome);
+        }
+        throw e;
+      }
     });
   const start = (row: OrderRow) => act(row, "測定開始", () => startTask(live.client, order(row)));
   const rerun = (row: OrderRow) => act(row, "再検", () => rerunTask(live.client, order(row)));

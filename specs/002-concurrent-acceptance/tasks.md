@@ -103,7 +103,7 @@ SC-002（同時確定 100 回）・SC-003（20 回連続）が自動テストを
 - [X] T024 [US1] 一覧の変化を表示する：`ui/src/systems/lis/LisScreen.tsx` の各行に、`RowChange` があればクラス `row-changed` を付け、作業の状態の欄に変わった項目ごとの 1 行（`data-testid="row-change-{srId}"`、例：「担当：技師 A → 技師 B」「状態：依頼済み requested → 受付済み accepted」）を表示する。`ui/src/styles/components.css` に `@keyframes row-changed`（背景の点滅 1.2 秒 × 2）と `.row-changed` を追加し、`@media (prefers-reduced-motion: reduce)` では点滅させない。赤色・警告アイコンは使わない（D-28）
 - [X] T025 [P] [US1] 版の履歴の差分：`ui/src/monitor/history.ts` に `VersionDiff`（data-model.md §6）と `diffVersions` を追加し、`ui/src/monitor/HistoryView.tsx` で変わったセルを強調表示する（`data-testid="history-changed-{versionId}-{field}"`）。「この版を作った通信」の列に送信元の画面名（`clientName(cause.client)`、例：「技師 B」）を併記する。T021 を通す
 - [X] T026 [P] [US1] `ui/src/monitor/sequenceModel.ts` の `operationLabel` の呼び出し元で、`PUT`・`PATCH` の要求に `If-Match` の注記を付ける（ヘッダ名は大文字小文字を区別せずに探す）。T022 を通す
-- [ ] T027 [US1] `ui/tests/e2e/s2-concurrent.spec.ts` を作り、S2-1 のテストを書く（`PageBag` で `/control`・`/lis?tech=tech-a`・`/lis?tech=tech-b`・`/monitor` を別々のコンテキストで開く）：「S2-1 の準備」→ 両方の見出しが「版の確認：付けない（デモ設定）」→ 技師 A・B の順に「受付」→ 両方の確認欄に同じ版 → 技師 A「受付を確定」→ 技師 B の確認欄が開いたまま → 技師 B「受付を確定」→ エラー表示が無い → 技師 A の `row-change-{srId}` に「技師 A → 技師 B」→ 通信モニタに「If-Match なし」の PATCH が 2 件（送信元がそれぞれ「技師 A」「技師 B」と区別して表示される。FR-002）、どちらも成功 → 版の履歴の最新の版で担当のセルが強調され「技師 B」
+- [X] T027 [US1] `ui/tests/e2e/s2-concurrent.spec.ts` を作り、S2-1 のテストを書く（`PageBag` で `/control`・`/lis?tech=tech-a`・`/lis?tech=tech-b`・`/monitor` を別々のコンテキストで開く）：「S2-1 の準備」→ 両方の見出しが「版の確認：付けない（デモ設定）」→ 技師 A・B の順に「受付」→ 両方の確認欄に同じ版 → 技師 A「受付を確定」→ 技師 B の確認欄が開いたまま → 技師 B「受付を確定」→ エラー表示が無い → 技師 A の `row-change-{srId}` に「技師 A → 技師 B」→ 通信モニタに「If-Match なし」の PATCH が 2 件（送信元がそれぞれ「技師 A」「技師 B」と区別して表示される。FR-002）、どちらも成功 → 版の履歴の最新の版で担当のセルが強調され「技師 B」
 
 **Checkpoint**: S2-1 を 4 つのウィンドウで再現できる（MVP：事故の再現）
 
@@ -118,13 +118,13 @@ SC-002（同時確定 100 回）・SC-003（20 回連続）が自動テストを
 ### Tests for User Story 2
 
 - [X] T028 [P] [US2] `server/src/test/java/jp/example/demo/integration/S2ScenarioIT.java` に S2-2 のテストを追加する：(a) 順番の確定：`setPolicy(true, true)` の準備の後、両者が同じ ETag で `acceptWith` → 技師 A が 200、技師 B が 412（OperationOutcome 付き）→ 作業は `owner = tech-a` で版は準備後の版 + 1 のまま。(b) 同時の確定：2 つのスレッドが `CountDownLatch` で揃ってから同じ ETag の `acceptWith`（技師 A・技師 B）を送り、ちょうど 1 つが 200・1 つが 412、作業の担当が 200 を受けた側であることを、`Integer.getInteger("s2.repeat", 100)` 回（各回は準備からやり直す）確かめる
-- [ ] T029 [P] [US2] `ui/tests/unit/errors.test.ts` にテストを追加する：`acceptConflictError(latestTask)` が、最新が `accepted` で担当が `PractitionerRole/tech-a` なら「この依頼は既に 技師 A が受付済みです」（`httpLabel` は「412 Precondition Failed」、`kind` は `conflict`）、`in-progress` 以降で担当が技師でも同様、`cancelled` や担当が検査部なら S1 の 412 の文言を返す
+- [X] T029 [P] [US2] `ui/tests/unit/errors.test.ts` にテストを追加する：`acceptConflictError(latestTask)` が、最新が `accepted` で担当が `PractitionerRole/tech-a` なら「この依頼は既に 技師 A が受付済みです」（`httpLabel` は「412 Precondition Failed」、`kind` は `conflict`）、`in-progress` 以降で担当が技師でも同様、`cancelled` や担当が検査部なら S1 の 412 の文言を返す
 
 ### Implementation for User Story 2
 
-- [ ] T030 [US2] `ui/src/fhir/errors.ts` に `acceptConflictError(latest: Task): DisplayError` を追加する（担当者名は `PractitionerRole/tech-a` → 「技師 A」、`tech-b` → 「技師 B」。`ui/src/systems/shared/StatusBadges.tsx` の対応と同じ値を使う）。T029 を通す
-- [ ] T031 [US2] `ui/src/systems/lis/LisScreen.tsx` の確定の失敗処理で、`FhirError` の `status === 412` のときは `beginAccept`（`GET /Task/{id}`）で最新を取り直して `acceptConflictError(latest.resource)` をエラー欄に表示し、`AcceptDraft` を破棄して一覧を取り直す。自動ではやり直さない（FR-013）。取り直しに失敗したら S1 の 412 の文言を表示する
-- [ ] T032 [US2] `ui/tests/e2e/s2-concurrent.spec.ts` に S2-2 のテストを追加する：「S2-2 の準備」→ 見出しが「版の確認：付ける」→ 技師 A・B の順に「受付」→ 技師 A「受付を確定」→ 技師 B「受付を確定」→ 技師 B に「この依頼は既に 技師 A が受付済みです（412 Precondition Failed）」と、行に「受付済み」「担当：技師 A」、確認欄が閉じる → 通信モニタに同じ `If-Match: W/"n"` の PATCH が 2 件、後の 1 件が「412 他の利用者が先に更新済み」で失敗の表示 → 版の履歴に技師 B が作った版が無い。また、技師 A の受付が反映された後は技師 B の行に受付ボタンが出ず補足が表示されること。続けて「同時に確定」のテスト：準備 → 両者「受付」→ 2 つの「受付を確定」を `Promise.all` で押し、片方のウィンドウにだけ 412 の文言が出て、作業の担当が成功した側であることを `Number(process.env.S2_REPEAT ?? 5)` 回繰り返す
+- [X] T030 [US2] `ui/src/fhir/errors.ts` に `acceptConflictError(latest: Task): DisplayError` を追加する（担当者名は `PractitionerRole/tech-a` → 「技師 A」、`tech-b` → 「技師 B」。`ui/src/systems/shared/StatusBadges.tsx` の対応と同じ値を使う）。T029 を通す
+- [X] T031 [US2] `ui/src/systems/lis/LisScreen.tsx` の確定の失敗処理で、`FhirError` の `status === 412` のときは `beginAccept`（`GET /Task/{id}`）で最新を取り直して `acceptConflictError(latest.resource)` をエラー欄に表示し、`AcceptDraft` を破棄して一覧を取り直す。自動ではやり直さない（FR-013）。取り直しに失敗したら S1 の 412 の文言を表示する
+- [X] T032 [US2] `ui/tests/e2e/s2-concurrent.spec.ts` に S2-2 のテストを追加する：「S2-2 の準備」→ 見出しが「版の確認：付ける」→ 技師 A・B の順に「受付」→ 技師 A「受付を確定」→ 技師 B「受付を確定」→ 技師 B に「この依頼は既に 技師 A が受付済みです（412 Precondition Failed）」と、行に「受付済み」「担当：技師 A」、確認欄が閉じる → 通信モニタに同じ `If-Match: W/"n"` の PATCH が 2 件、後の 1 件が「412 他の利用者が先に更新済み」で失敗の表示 → 版の履歴に技師 B が作った版が無い。また、技師 A の受付が反映された後は技師 B の行に受付ボタンが出ず補足が表示されること。続けて「同時に確定」のテスト：準備 → 両者「受付」→ 2 つの「受付を確定」を `Promise.all` で押し、片方のウィンドウにだけ 412 の文言が出て、作業の担当が成功した側であることを `Number(process.env.S2_REPEAT ?? 5)` 回繰り返す
 
 **Checkpoint**: S2-1 と S2-2 を続けて見せられる（講演の中心の対比）
 
@@ -139,14 +139,14 @@ SC-002（同時確定 100 回）・SC-003（20 回連続）が自動テストを
 ### Tests for User Story 3
 
 - [X] T033 [P] [US3] `server/src/test/java/jp/example/demo/integration/S2ScenarioIT.java` に S2-3 のテストを追加する：`setPolicy(true, false)` の準備の後、`acceptWith(ids, "tech-a", null)` が 400（OperationOutcome の diagnostics に `If-Match` を含む）、作業は版・状態・担当とも変わらない → `setPolicy(false, null)` の後、同じ要求が 200 → 別の準備で `setPolicy(true, …)` のまま正しい ETag の `acceptWith` が 200（US3 シナリオ 4）。回数は `s2.repeat`（既定 20）
-- [ ] T034 [P] [US3] `ui/tests/unit/errors.test.ts` の 400（If-Match 無し）の期待値を「版の確認（If-Match）が無い更新はサーバーが受け付けません」に変える。`ui/tests/unit/sequence.test.ts` に、応答本文の diagnostics に `If-Match` を含む 400 は「400 版の確認が必要」、それ以外の 400 は「400 要求の形式が不正」になるテストを追加する
+- [X] T034 [P] [US3] `ui/tests/unit/errors.test.ts` の 400（If-Match 無し）の期待値を「版の確認（If-Match）が無い更新はサーバーが受け付けません」に変える。`ui/tests/unit/sequence.test.ts` に、応答本文の diagnostics に `If-Match` を含む 400 は「400 版の確認が必要」、それ以外の 400 は「400 要求の形式が不正」になるテストを追加する
 
 ### Implementation for User Story 3
 
-- [ ] T035 [P] [US3] `ui/src/fhir/errors.ts` の 400（If-Match 無し）の文言を「版の確認（If-Match）が無い更新はサーバーが受け付けません」に変える（research.md R-05）。T034 の errors 部分を通す
-- [ ] T036 [P] [US3] `ui/src/monitor/sequenceModel.ts` の `resultText` を `resultText(status, body?)` にし、400 で本文に `If-Match` を含めば「400 版の確認が必要」を返す（呼び出し元で `record.response.body` を渡す）。T034 の sequence 部分を通す
-- [ ] T037 [US3] `ui/src/app/ControlPanel.tsx` に設定の切り替えを追加する：「サーバーの版の確認」（`data-testid="policy-if-match-required"`、「必須」「任意」の 2 択）と「検体検査システムの版の確認」（`data-testid="policy-lab-sends-if-match"`、「付ける」「付けない（デモ専用）」の 2 択）。現在値を選択状態で示し、変えると `putPolicy` の部分更新を送る。失敗は「設定を変更できません」と表示する。準備の実行中は押せない
-- [ ] T038 [US3] `ui/tests/e2e/s2-concurrent.spec.ts` に S2-3 のテストを追加する：「S2-3 の準備」→ 技師 A「受付」→「受付を確定」→「版の確認（If-Match）が無い更新はサーバーが受け付けません（400 Bad Request）」と、行が「依頼済み」のまま → 通信モニタに「If-Match なし」の PATCH と「400 版の確認が必要」→ 制御パネルでサーバーを「任意」に変える → 通信モニタに「ポリシーの変更」→ 技師 A で再び受付・確定して成功する
+- [X] T035 [P] [US3] `ui/src/fhir/errors.ts` の 400（If-Match 無し）の文言を「版の確認（If-Match）が無い更新はサーバーが受け付けません」に変える（research.md R-05）。T034 の errors 部分を通す
+- [X] T036 [P] [US3] `ui/src/monitor/sequenceModel.ts` の `resultText` を `resultText(status, body?)` にし、400 で本文に `If-Match` を含めば「400 版の確認が必要」を返す（呼び出し元で `record.response.body` を渡す）。T034 の sequence 部分を通す
+- [X] T037 [US3] `ui/src/app/ControlPanel.tsx` に設定の切り替えを追加する：「サーバーの版の確認」（`data-testid="policy-if-match-required"`、「必須」「任意」の 2 択）と「検体検査システムの版の確認」（`data-testid="policy-lab-sends-if-match"`、「付ける」「付けない（デモ専用）」の 2 択）。現在値を選択状態で示し、変えると `putPolicy` の部分更新を送る。失敗は「設定を変更できません」と表示する。準備の実行中は押せない
+- [X] T038 [US3] `ui/tests/e2e/s2-concurrent.spec.ts` に S2-3 のテストを追加する：「S2-3 の準備」→ 技師 A「受付」→「受付を確定」→「版の確認（If-Match）が無い更新はサーバーが受け付けません（400 Bad Request）」と、行が「依頼済み」のまま → 通信モニタに「If-Match なし」の PATCH と「400 版の確認が必要」→ 制御パネルでサーバーを「任意」に変える → 通信モニタに「ポリシーの変更」→ 技師 A で再び受付・確定して成功する
 
 **Checkpoint**: S2-1〜S2-3 のすべてを再現できる
 
@@ -161,9 +161,9 @@ SC-002（同時確定 100 回）・SC-003（20 回連続）が自動テストを
 ### Implementation for User Story 4
 
 - [ ] T039 [P] [US4] `docs/06-demo-procedures.md` の骨子（T002）を完成させる（research.md R-11 の構成。期待結果と話すことの列を埋める）：冒頭に本書の目的（画面上の案内を出さないシナリオの手順。D-29）。S2 の節に (1) 準備：起動、4 つのウィンドウの URL（`/control`・`/lis?tech=tech-a`・`/lis?tech=tech-b`・`/monitor`）と 1920×1080 での並べ方の例（左上 技師 A、右上 技師 B、左下 デモ制御パネル、右下 通信モニタ）、入口の「S2 同時受付で開くウィンドウ」からも開けること。(2) S2-1・S2-2・S2-3 のそれぞれ：表（# / 操作する画面 / 操作 / 画面の期待結果 / 通信モニタの期待結果 / 話すこと（業務上の意味・FHIR 上の意味））。期待結果は quickstart.md §2.1〜§2.3 と一致させ、版は実際の番号（準備の後の版は 2、例：`W/"2"`）で書く（data-model.md §3）。(3) 締めの解説：ETag と If-Match（楽観的ロック）、「誰が処理中か」は Task.status + owner（論理ロック。FHIR に編集中ロックの標準 API は無い）、状態の遷移チェックでは「受付済み → 受付済み」の上書きを防げないこと。(4) うまくいかないとき：設定が違う・順序を間違えた・確認欄が開かない → 準備ボタンを押し直す／初期化。(5) 所要時間の目安：S2 全体で解説込み 5 分（D-24）、S1 と合わせて 15 分
-- [ ] T040 [P] [US4] `ui/src/app/Launcher.tsx` の「個別のウィンドウで開く」に「デモ制御パネル」（`/control`）を加え、小見出し「S2 同時受付で開くウィンドウ」の下に `/control`・`/lis?tech=tech-a`・`/lis?tech=tech-b`・`/monitor` へのリンクと「操作の手順は docs/06-demo-procedures.md を参照」の 1 行を置く（contracts/ui-screens.md「ルート」）
-- [ ] T041 [P] [US4] `docs/README.md` の一覧に `06-demo-procedures.md` があることを確認し、説明文を実装後の内容に合わせる
-- [ ] T042 [US4] `ui/tests/e2e/s2-concurrent.spec.ts` に入口のテストを追加する：`/` に「S2 同時受付で開くウィンドウ」と 4 つのリンクがあり、各リンクの先が開ける。S2 のウィンドウ（`/control`・`/lis`）に自習モードのガイドの強調（S1 のガイドが付ける `data-guide-active` 属性。`ui/src/guide/useGuide.ts`）が無いこと（D-29）
+- [X] T040 [P] [US4] `ui/src/app/Launcher.tsx` の「個別のウィンドウで開く」に「デモ制御パネル」（`/control`）を加え、小見出し「S2 同時受付で開くウィンドウ」の下に `/control`・`/lis?tech=tech-a`・`/lis?tech=tech-b`・`/monitor` へのリンクと「操作の手順は docs/06-demo-procedures.md を参照」の 1 行を置く（contracts/ui-screens.md「ルート」）
+- [X] T041 [P] [US4] `docs/README.md` の一覧に `06-demo-procedures.md` があることを確認し、説明文を実装後の内容に合わせる
+- [X] T042 [US4] `ui/tests/e2e/s2-concurrent.spec.ts` に入口のテストを追加する：`/` に「S2 同時受付で開くウィンドウ」と 4 つのリンクがあり、各リンクの先が開ける。S2 のウィンドウ（`/control`・`/lis`）に自習モードのガイドの強調（S1 のガイドが付ける `data-guide-active` 属性。`ui/src/guide/useGuide.ts`）が無いこと（D-29）
 
 **Checkpoint**: 手順書と画面がそろい、S2 を講演で実演できる
 

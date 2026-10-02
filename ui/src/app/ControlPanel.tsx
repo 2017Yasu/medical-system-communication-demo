@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { usePolicy } from "../demo/usePolicy";
+import { putPolicy } from "../realtime/demoApi";
 import { prepareScenario, type PrepareStage, type S2ScenarioId } from "../demo/prepare";
 import { ResetButton } from "./ResetButton";
 
@@ -22,6 +23,21 @@ export function ControlPanel() {
   const { policy, error: policyError } = usePolicy();
   const [running, setRunning] = useState<S2ScenarioId | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [switchError, setSwitchError] = useState<string | null>(null);
+
+  const change = async (partial: Parameters<typeof putPolicy>[0]) => {
+    setSwitchError(null);
+    try {
+      await putPolicy(partial);
+    } catch (e) {
+      setSwitchError(e instanceof Error ? e.message : "設定を変更できません");
+    }
+  };
+  const choice = (label: string, selected: boolean, onClick: () => void, testId: string) => (
+    <button type="button" className={selected ? "primary" : undefined} aria-pressed={selected} disabled={running !== null || !policy} onClick={onClick} data-testid={testId}>
+      {label}
+    </button>
+  );
 
   const prepare = async (id: S2ScenarioId, name: string) => {
     setRunning(id);
@@ -73,12 +89,17 @@ export function ControlPanel() {
       <section className="panel" aria-label="版の確認の設定">
         <h2>版の確認の設定</h2>
         {policyError && <p role="alert">{policyError}</p>}
-        <p data-testid="policy-if-match-required">
-          サーバーの版の確認：<strong>{policy ? (policy.ifMatchRequired ? "必須" : "任意") : "取得中…"}</strong>
-        </p>
-        <p data-testid="policy-lab-sends-if-match">
-          検体検査システムの版の確認：<strong>{policy ? (policy.labSendsIfMatch ? "付ける" : "付けない（デモ専用）") : "取得中…"}</strong>
-        </p>
+        {switchError && <p role="alert">{switchError}</p>}
+        <div className="row" data-testid="policy-if-match-required">
+          <span>サーバーの版の確認：</span>
+          {choice("必須", policy?.ifMatchRequired === true, () => change({ ifMatchRequired: true }), "policy-if-match-required-on")}
+          {choice("任意", policy?.ifMatchRequired === false, () => change({ ifMatchRequired: false }), "policy-if-match-required-off")}
+        </div>
+        <div className="row" data-testid="policy-lab-sends-if-match" style={{ marginTop: "var(--sp-2)" }}>
+          <span>検体検査システムの版の確認：</span>
+          {choice("付ける", policy?.labSendsIfMatch === true, () => change({ labSendsIfMatch: true }), "policy-lab-sends-on")}
+          {choice("付けない（デモ専用）", policy?.labSendsIfMatch === false, () => change({ labSendsIfMatch: false }), "policy-lab-sends-off")}
+        </div>
       </section>
     </main>
   );

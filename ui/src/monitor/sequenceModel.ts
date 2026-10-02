@@ -54,7 +54,8 @@ const RESULT: Record<number, string> = {
   422: "業務ルール違反",
 };
 
-export function resultText(status: number): string {
+export function resultText(status: number, body = ""): string {
+  if (status === 400 && body.includes("If-Match")) return "400 版の確認が必要";
   return `${status} ${RESULT[status] ?? (status >= 500 ? "サーバーエラー" : status >= 400 ? "エラー" : "成功")}`;
 }
 
@@ -87,7 +88,7 @@ export function buildSequence(records: TrafficRecord[], options: SequenceOptions
         to: "server",
         label: operationLabel(record.request.method, record.request.url, record.request.headers),
         operator: clientName(record.client),
-        result: resultText(record.response.status),
+        result: resultText(record.response.status, record.response.body),
         ok: record.response.status < 400,
         record,
       });

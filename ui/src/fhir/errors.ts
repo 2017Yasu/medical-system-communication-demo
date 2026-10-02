@@ -48,7 +48,7 @@ export function toDisplayError(input: ErrorInput, operationName: string): Displa
   switch (input.status) {
     case 400:
       if (detail?.includes("If-Match")) {
-        return build("invalid", "更新の前提となる版が指定されていません", undefined, label);
+        return build("invalid", "版の確認（If-Match）が無い更新はサーバーが受け付けません", undefined, label);
       }
       return build("invalid", "要求の内容に誤りがあります", detail, label);
     case 404:
@@ -64,4 +64,19 @@ export function toDisplayError(input: ErrorInput, operationName: string): Displa
 
 function build(kind: DisplayErrorKind, message: string, detail?: string, label?: string): DisplayError {
   return { kind, message, detail, httpLabel: label, text: label ? `${message}（${label}）` : message };
+}
+
+const TECH_NAMES: Record<string, string> = { "PractitionerRole/tech-a": "技師 A", "PractitionerRole/tech-b": "技師 B" };
+const ACCEPTED_OR_LATER = new Set(["accepted", "in-progress", "on-hold", "completed"]);
+
+/**
+ * 受付の確定が 412 になったときの表示。最新の作業が受付済み以降で担当が技師なら、誰が受付済みかを示す
+ * （specs/002 R-04）。それ以外は S1 と同じ競合の文言。
+ */
+export function acceptConflictError(latest: { status?: string; owner?: { reference?: string } }): DisplayError {
+  const name = TECH_NAMES[latest.owner?.reference ?? ""];
+  if (name && latest.status && ACCEPTED_OR_LATER.has(latest.status)) {
+    return build("conflict", `この依頼は既に ${name} が受付済みです`, undefined, httpLabel(412));
+  }
+  return toDisplayError({ status: 412 }, "受付");
 }

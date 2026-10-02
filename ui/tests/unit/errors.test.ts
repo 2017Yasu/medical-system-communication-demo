@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toDisplayError } from "../../src/fhir/errors";
+import { acceptConflictError, toDisplayError } from "../../src/fhir/errors";
 
 function outcome(diagnostics: string) {
   return { resourceType: "OperationOutcome", issue: [{ severity: "error", code: "processing", diagnostics }] };
@@ -9,7 +9,7 @@ function outcome(diagnostics: string) {
 describe("toDisplayError", () => {
   it("400 without If-Match", () => {
     const e = toDisplayError({ status: 400, outcome: outcome("更新の前提となる版（If-Match）が指定されていません") }, "受付");
-    expect(e.message).toBe("更新の前提となる版が指定されていません");
+    expect(e.message).toBe("版の確認（If-Match）が無い更新はサーバーが受け付けません");
     expect(e.httpLabel).toBe("400 Bad Request");
     expect(e.text).toContain("400 Bad Request");
   });
@@ -53,5 +53,27 @@ describe("toDisplayError", () => {
     const e = toDisplayError({ status: 500 }, "受付");
     expect(e.message).toContain("サーバーでエラーが発生しました");
     expect(e.httpLabel).toBe("500 Internal Server Error");
+  });
+});
+
+describe("acceptConflictError (412 on accept, specs/002 R-04)", () => {
+  const task = (status: string, owner: string) => ({ resourceType: "Task", status, intent: "order", owner: { reference: owner } }) as never;
+
+  it("says who has already accepted it", () => {
+    const e = acceptConflictError(task("accepted", "PractitionerRole/tech-a"));
+    expect(e.message).toBe("この依頼は既に 技師 A が受付済みです");
+    expect(e.kind).toBe("conflict");
+    expect(e.httpLabel).toBe("412 Precondition Failed");
+    expect(e.text).toBe("この依頼は既に 技師 A が受付済みです（412 Precondition Failed）");
+  });
+
+  it("also applies after the work has moved on", () => {
+    expect(acceptConflictError(task("in-progress", "PractitionerRole/tech-b")).message).toBe("この依頼は既に 技師 B が受付済みです");
+  });
+
+  it("falls back to the generic conflict message otherwise", () => {
+    const generic = "他の利用者が先に更新しました。最新の状態を表示します";
+    expect(acceptConflictError(task("cancelled", "Organization/lab-dept")).message).toBe(generic);
+    expect(acceptConflictError(task("requested", "Organization/lab-dept")).message).toBe(generic);
   });
 });
