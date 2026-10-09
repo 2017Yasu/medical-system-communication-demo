@@ -78,7 +78,7 @@ HAPI plain server は REST の入口（アノテーションによる振り分�
 | F6 | PATCH（JSON Patch） | S1, S2, S4 | `@Patch` で受け、適用処理は `io.dogote:json-patch` を利用（D-21）。HAPI は `@Patch` の If-Match を `IdType` に設定しないため、ヘッダを自分で読む。If-Match を同様に扱う |
 | F7 | Transaction Bundle | S1, S3, S4 | `@Transaction`。`urn:uuid` 参照の解決、`entry.request.ifMatch` / `ifNoneExist` の処理、失敗時は全体を元に戻す |
 | F8 | 条件付き作成（If-None-Exist） | —（サーバーは S1 の実装で対応済み。S3 では使わない。D-40） | 単独リクエストと Transaction 内の両方。一致するものがあれば作らずに既存を返す |
-| F9 | Task 状態遷移チェック | S1, S2 | [04-design-rules.md](04-design-rules.md#task-の状態遷移マトリクス) のマトリクスで判定。デモ制御で ON/OFF |
+| F9 | Task 状態遷移チェック | S1, S2, S4 | [04-design-rules.md](04-design-rules.md#task-の状態遷移マトリクス) のマトリクスで判定。デモ制御で ON/OFF |
 | F10 | Subscription | S1〜S4 | 下記 [Subscription](#subscription) 参照 |
 | F11 | Slot 仮押さえのタイムアウト | S3 | スケジューラで `busy-tentative` の Slot を一定秒数後に `free` へ戻す。期限は仮押さえを受け付けた時点の秒数で決め、書き込みロックの中で版が変わっていないことを確かめてから戻す。通常の書き込みと同じロック・版の採番・Subscription 通知を通し、通信記録に送信元「FHIR サーバー（仮押さえの期限切れ）」（`kind = "server"`）として残す（D-37、specs/003 research R-05・R-06） |
 | F12 | `$process-message` | S5 | Message Bundle を受け、中のリソースを登録する |
@@ -90,11 +90,14 @@ HAPI plain server は REST の入口（アノテーションによる振り分�
 
 | リソース | パラメータ | 用途 |
 |---|---|---|
-| Task | `owner`, `requester`, `status`, `focus`, `patient` | 部門の受付待ち一覧、電子カルテの進捗表示、Subscription の条件 |
+| Task | `owner`, `requester`, `status`, `focus`, `patient`, `encounter` | 部門の受付待ち一覧、電子カルテの進捗表示、Subscription の条件（`encounter` は S4 の病棟の画面） |
 | ServiceRequest | `subject`, `requester`, `status`, `category` | 電子カルテの依頼一覧（S1 は `subject`・`requester`・`status` を使う。`category` は S3 以降） |
 | DiagnosticReport | `based-on`, `subject` | 結果の表示 |
 | Observation | `based-on`, `subject` | 結果の表示 |
-| MedicationRequest / MedicationDispense | `subject`, `status` | 処方・調剤の一覧 |
+| MedicationRequest | `requester`, `subject`, `encounter`, `status` | 処方の一覧（医師：`requester`、病棟：`encounter`） |
+| MedicationDispense | `prescription`, `subject` | お渡し・払出の状況（`prescription` = `authorizingPrescription`） |
+| Encounter | `patient`, `location`, `status` | 入院中の患者（病棟の画面、処方の区分の判定） |
+| Location | （なし。全件） | 病棟の表示 |
 | Slot | `schedule`, `status` | 予約枠カレンダー、Subscription の条件（`schedule`） |
 | Appointment | `slot`, `status`, `patient`, `practitioner` | 予約一覧（枠ごとの予約） |
 | Patient | `identifier`, `name` | 患者選択 |
