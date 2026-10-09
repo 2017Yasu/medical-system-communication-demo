@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 医療機関の FHIR サーバーと部門システム（電子カルテ・検体検査）の連携を、医療従事者にも分かりやすく見せるデモ。
 ドキュメント・UI 文言・コミットメッセージ以外のコード上の識別子は英語、ドキュメントと UI 文言は日本語。
-現在の実装範囲は S1（検体検査）・S2（同時受付の排他制御）・S3（CT の予約枠の取り合い）。S4・S5（処方調剤、Message Bundle）は `docs/` に設計のみ。
+現在の実装範囲は S1（検体検査）・S2（同時受付の排他制御）・S3（CT の予約枠の取り合い）・S4（処方調剤：外来・入院）。S5（Message Bundle）は `docs/` に設計のみ。
 
 `.specify/memory/constitution.md`（v1.1.0）が最優先。特に次を守る：
 - 画面同士は FHIR サーバー経由でのみ通信する（直接通信・独自バックエンド禁止）。デモの初期化・ポリシー変更（`/demo/*`）だけが例外。
@@ -22,6 +22,7 @@ mvn verify                                       # 単体 + 統合テスト（fa
 mvn verify -Dit.test=S1ScenarioIT                # 統合テストを 1 クラスだけ
 mvn test -Dtest=IfMatchRuleTest                  # 単体テストを 1 クラスだけ
 mvn verify -Ds1.repeat=20                        # S1 系シナリオを 20 回繰り返す（SC-004）
+mvn verify -Dit.test=S4ScenarioIT -Ds4.repeat=20   # S4（外来・入院の通し、既定 20 回。お渡しの競合・完了後のお渡し・通知の条件・通信の取りこぼしも確認）
 mvn verify -Dit.test=S2ScenarioIT -Ds2.repeat=100  # S2（同時確定は既定 100 回、S2-1・S2-3 は 20 回）
 mvn verify -Dit.test=S3ScenarioIT -Ds3.repeat=100  # S3（同時の仮押さえは既定 100 回、S3-1〜S3-3 は 20 回。期限切れは期限 1 秒で確かめる）
 mvn -DskipTests package                          # server/target/demo-server.jar（shade の実行可能 JAR）
@@ -38,6 +39,7 @@ npx playwright install chromium && npx playwright test
 npx playwright test tests/e2e/presentation.spec.ts -g "次へ"
 S2_REPEAT=100 npx playwright test tests/e2e/s2-concurrent.spec.ts   # S2（画面からの同時確定の繰り返し回数。既定 5）
 S3_REPEAT=100 npx playwright test tests/e2e/s3-slot-booking.spec.ts -g "同時に仮押さえ"   # S3（画面からの同時の仮押さえ。既定 5）
+npx playwright test tests/e2e/s4-prescription.spec.ts                # S4（個別ウィンドウ・講演モード・自習モード）
 
 # 起動
 docker compose build && docker compose up        # http://localhost:8080/
@@ -70,9 +72,9 @@ scripts/fetch-jp-packages.sh [--check|--force]
 - `fhir/client.ts`：全要求に `X-Demo-Client`（通信モニタが送信元を表示するための独自ヘッダ）を付け、ETag を保持して If-Match を付ける。412 等は自動リトライせず、業務用語のエラー（`fhir/errors.ts`、`fhir/labels.ts`）にする。
 - `fhir/builders/labOrder.ts` と `fhir/labActions.ts`：検体検査の各操作が送る FHIR リソース・要求の組み立てと送信。画面操作とシナリオの自動実行が共有する。検査項目・コードは `master/fhir-master.json`（JLAC10 などは JP Terminology で確認済み。サーバーのテストも同じファイルを読む）。
 - `realtime/`：`useLiveData`（Subscription を登録 → bind → ping で取り直す共通フック）、`trafficStore`（通信記録を seq 順に保持）。同じ ID の Subscription を複数画面が同時に作る競合を `ensureSubscription` が吸収する。
-- `scenario/`：シナリオ定義（`s1Main.ts`、`variations.ts`）と `ScenarioRunner`。**ステップの完了は「データの状態」と「通信記録の条件（前のステップの基準 seq より後で最初に一致した通信）」の両方で判定**する。データが変わらないステップ（通知による自動反映など）を区別するため。講演モードの「戻る」は初期化して再実行する。
+- `scenario/`：シナリオ定義（`s1Main.ts`、`variations.ts`、S4 は `s4Prescription.ts`）と `ScenarioRunner`。**ステップの完了は「データの状態」と「通信記録の条件（前のステップの基準 seq より後で最初に一致した通信）」の両方で判定**する。データが変わらないステップ（通知による自動反映など）を区別するため。講演モードの「戻る」は初期化して再実行する。
 - `guide/`：自習モード。シナリオの `target.control` と画面の `data-guide` 属性が対応している（`tests/unit/scenarios.test.ts` が食い違いを検出する）。
-- `app/StageView`：電子カルテ・検体検査・通信モニタを 1 画面に並べる。医師/看護師の両画面を常に配置し表示だけ切り替える（通知の bind を外さないため）。
+- `app/StageView`：電子カルテ・検体検査（S4 は薬剤部門システム）・通信モニタを 1 画面に並べる。医師/看護師の両画面を常に配置し表示だけ切り替える（通知の bind を外さないため）。列の構成はシナリオの `stage`（`lab` / `pharmacy`）で決まる。
 
 ### S2（同時受付）の要点
 - **ステージビューを使わない**（D-29）。`/control`（デモ制御パネル）・`/lis?tech=tech-a`・`/lis?tech=tech-b`・`/monitor` を別ウィンドウで開き、`docs/06-demo-procedures.md` に従って手で操作する。画面上の案内（講演モードの進行・自習ガイド）は無い。憲章 v1.1.0 の原則 V がこれを認めている。
@@ -91,8 +93,18 @@ scripts/fetch-jp-packages.sh [--check|--force]
 - 電子カルテの CT 予約は「枠を選ぶ（その時点の版を `BookingDraft` に保持）→ 仮押さえ → 確定」。一覧の行の版は通知のたびに最新になるため使えない（S2 の `AcceptDraft` と同じ）。押さえた人は `Slot.comment`（「仮押さえ：医師 X」）に**表示用**として書き、判定には使わない（D-35）。
 - 医師 X の CT の依頼が S1 の検体検査の一覧・準備に混ざらないよう、`ServiceRequest` の検索は `category`（検体検査 `108252007`／画像検査 `363679005`）で絞る。通信モニタは Transaction の中身の表（`monitor/transactionSummary.ts`）と、記録にある画面の種類で決まる列（`lanesFor`）を持つ。
 
+### S4（処方調剤）の要点
+- **S1 と同じステージビューと講演・自習モード**（D-42。手順書は作らない）。`/stage?mode=…&scenario=s4-outpatient|s4-inpatient`。シナリオの `stage = "pharmacy"` で列が「電子カルテ 処方（医師 X / 医師 Y / 看護師 F）・薬剤部門システム・通信モニタ」になる。`app/stageRoles.ts` が、講演モードは解説中のステップ、自習モードは次のステップから役割・薬剤師を決める（自習モードは薬剤師を自動で切り替えない）。S1 の見え方は変えない。
+- 画面：`/ehr/rx?role=dr-x|dr-y|ns-f`（処方の入力と一覧、看護師 F は病棟の一覧だけで操作なし。D-48）、`/pharmacy`（1 つの画面で薬剤師 C・E を切り替える）。薬剤部門システムは通知の受信と一覧の取得を `X-Demo-Client: pharmacy`、更新を薬剤師ごとの送信元（`pharmacy-ph-c`・`pharmacy-ph-e`）で送る（通信モニタで操作者を区別するため）。
+- 外来は**お渡しの Transaction で処方まで `completed`**、入院は**払出で作業だけ `completed`、処方は `active` のまま**（D-43）。調剤の記録（MedicationDispense）は最後に 1 回だけ作る（D-47）。区分は MERIT9（外来 OHP+OHI、入院 IHP+XTR。D-44）で、入院だけ Encounter（`adm-saburo`）と Location（`ward-surgery`）を参照する。
+- **調剤した薬剤師は Task の版の履歴（`_history`）から読み取る**（D-51）。監査の開始で `Task.owner` が薬剤師 E に変わるため。お渡し・払出の前に `GET Task/{id}/_history` が 1 回入る（`fhir/prescriptionActions.ts` の `dispenserOf`）。調剤者と監査者が別人かどうかは**サーバーで判定せず**、画面が制限する（`systems/pharmacy/pharmacyRules.ts`。D-46）。
+- 受付は **1 回の PATCH**（一覧の行の版を If-Match に使う）。S1・S2 の 2 段階（D-27）は同時受付の再現のためで、S4 には使わない。
+- 入院のステップ 1〜4 は、進行パネルの「ステップ 4 まで進める」（`ScenarioRunner.runTo`。D-52）で 1 回の操作で送る。通信は実際に送られ、通信モニタに残る。
+- 看護師 F の通知は `Task?encounter=Encounter/adm-saburo`（Task に `encounter` を入れる）。サーバーに S4 専用の規則・API・ポリシーは無い（Provider と検索パラメータの追加だけ）。MedicationRequest・MedicationDispense に状態遷移の規則は置かない。
+- 薬剤のマスタ（HOT9・JAMI 用法コード・MERIT9 区分と単位）は `master/fhir-master.json` に置き、JP Terminology 2.2609.0 で確認済み（`JpPackageConsistencyTest` が空振りしないことまで確かめる）。
+
 ## ドキュメントと仕様
 
 - `docs/`：設計（概要、シナリオ S1〜S5、アーキテクチャ、設計ルール＝状態遷移・表示ラベル・コード体系、決定事項と未決事項）。
-- `specs/001-lab-order-workflow/`・`specs/002-concurrent-acceptance/`（S2）・`specs/003-ct-slot-booking/`（S3）：Spec Kit 成果物（spec / plan / research / data-model / contracts / quickstart / tasks / validation-results）。API・WebSocket・画面の契約は `contracts/`。
+- `specs/001-lab-order-workflow/`・`specs/002-concurrent-acceptance/`（S2）・`specs/003-ct-slot-booking/`（S3）・`specs/004-prescription-dispensing/`（S4）：Spec Kit 成果物（spec / plan / research / data-model / contracts / quickstart / tasks / validation-results）。API・WebSocket・画面の契約は `contracts/`。
 - 新しい機能は `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement` の流れ（`.specify/`、`.claude/skills/`）。

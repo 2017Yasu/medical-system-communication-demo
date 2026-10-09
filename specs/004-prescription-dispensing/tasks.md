@@ -321,14 +321,14 @@ US3（講演モード）は US1・US2 の画面と操作を使ってシナリオ
 
 **Purpose**: 文書の更新、回帰、オフラインの確認、検証結果の記録
 
-- [ ] T048 [P] `CLAUDE.md` を更新する：実装範囲を「S1・S2・S3・S4」に（S5 は `docs/` に設計のみ）、コマンドに `mvn verify -Dit.test=S4ScenarioIT -Ds4.repeat=20`（外来・入院を既定 20 回）と `npx playwright test tests/e2e/s4-prescription.spec.ts` を加え、
+- [X] T048 [P] `CLAUDE.md` を更新する：実装範囲を「S1・S2・S3・S4」に（S5 は `docs/` に設計のみ）、コマンドに `mvn verify -Dit.test=S4ScenarioIT -Ds4.repeat=20`（外来・入院を既定 20 回）と `npx playwright test tests/e2e/s4-prescription.spec.ts` を加え、
   「S4（処方調剤）の要点」の節を加える（ステージビューの `stage`、`/ehr/rx`・`/pharmacy`、薬剤部門システムは通知の受信が `pharmacy`・更新が `pharmacy-ph-c/e`、調剤した薬剤師は Task の版の履歴から読む（D-51）、
   入院のステップ 1〜4 を送る `runTo`（D-52）、外来は処方まで `completed`・入院は `active` のまま（D-43）、看護師 F の条件は `Task?encounter=`、画面側の制限はサーバーで判定しない（D-46））
-- [ ] T049 [P] docs と実装の食い違いを確認する（原則 VIII）：`docs/02-demo-scenarios.md` の S4 のステップの表・`docs/03-architecture.md` の検索パラメータの表・`docs/04-design-rules.md` の Transaction の表・表示ラベル・コード体系が、実装（`builders/prescription.ts`・`SearchParameters.java`・`labels.ts`）と一致すること。
+- [X] T049 [P] docs と実装の食い違いを確認する（原則 VIII）：`docs/02-demo-scenarios.md` の S4 のステップの表・`docs/03-architecture.md` の検索パラメータの表・`docs/04-design-rules.md` の Transaction の表・表示ラベル・コード体系が、実装（`builders/prescription.ts`・`SearchParameters.java`・`labels.ts`）と一致すること。
   食い違いがあれば、どちらを正とするか判断して同じ変更の中で両者を合わせる。`docs/01-overview.md` の講演の構成（45 分版 = S1〜S4、S4 は 12 分）が D-32・D-49 と一致することも確認する
-- [ ] T050 回帰とオフラインを確認する：`server/` で `mvn verify`（S1〜S4 の結合テスト、`-Ds4.repeat=20`）、`ui/` で `npm test && npm run typecheck`、UI をビルドして JAR を作り直し `npx playwright test`（S1〜S4 の E2E 全件）。
+- [X] T050 回帰とオフラインを確認する：`server/` で `mvn verify`（S1〜S4 の結合テスト、`-Ds4.repeat=20`）、`ui/` で `npm test && npm run typecheck`、UI をビルドして JAR を作り直し `npx playwright test`（S1〜S4 の E2E 全件）。
   `docker compose build` の後、`docker run --network none` で起動し、quickstart.md §2〜§5 を実行して外部への通信が無いこと（SC-005、`ui/tests/e2e/offline.spec.ts` の考え方）を確認する
-- [ ] T051 `specs/004-prescription-dispensing/validation-results.md` を作る（S3 の `validation-results.md` と同じ形）：T050 の結果（テストの件数・繰り返し回数と成功率（SC-004）、入院のステップ 1〜4 を送った時間（SC-002）、外来を解説なしで操作した時間（SC-001）、
+- [X] T051 `specs/004-prescription-dispensing/validation-results.md` を作る（S3 の `validation-results.md` と同じ形）：T050 の結果（テストの件数・繰り返し回数と成功率（SC-004）、入院のステップ 1〜4 を送った時間（SC-002）、外来を解説なしで操作した時間（SC-001）、
   反映までの時間（SC-003）、コードの確認の件数（SC-007）、オフライン（SC-005））と、実装中に docs を変えた点を記録する。SC-009・SC-010（医療従事者・来場者の試行）は実施予定として残す
 
 ---

@@ -27,6 +27,10 @@ test("全画面を操作しても、外部へのリクエストは 0 件で、�
     "/ehr/ct?doctor=dr-x",
     "/ehr/ct?doctor=dr-y",
     "/ris",
+    "/ehr/rx?role=dr-x",
+    "/ehr/rx?role=dr-y",
+    "/ehr/rx?role=ns-f",
+    "/pharmacy",
   ]) {
     await page.goto(path);
     await expect(page.locator("h1").first()).toBeVisible();
@@ -64,6 +68,19 @@ test("全画面を操作しても、外部へのリクエストは 0 件で、�
   }
   await page.goto("/stage?mode=self-study");
   await expect(page.getByTestId("guide-panel")).toBeVisible();
+  // S4：ステージビューで入院のステップ 1〜4 をまとめて進め、払出まで通す（specs/004）
+  await page.request.post("/demo/reset");
+  await page.goto("/stage?mode=presentation&scenario=s4-inpatient");
+  await page.waitForTimeout(1200);
+  await page.getByTestId("btn-fast-forward").click();
+  await expect(page.getByTestId("explanation")).toContainText("ステップ 4：", { timeout: 30_000 });
+  await expect(page.getByTestId("btn-next")).not.toContainText("実行中", { timeout: 30_000 });
+  for (let i = 0; i < 2; i++) {
+    await page.getByTestId("btn-next").click();
+    await expect(page.getByTestId("btn-next")).not.toContainText("実行中", { timeout: 10000 });
+  }
+  await page.goto("/monitor");
+  await expect(page.getByTestId("sequence-diagram")).toContainText("薬剤師 E：POST Transaction");
 
   expect(external, `外部へのリクエスト: ${external.join(", ")}`).toEqual([]);
 

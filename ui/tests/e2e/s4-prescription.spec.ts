@@ -132,6 +132,7 @@ const nextStep = async (page: Page, no: number) => {
 test.describe("講演モード", () => {
   test("外来：次へで最後まで進め、戻るで 1 つ前の状態に戻る", async ({ page, request }) => {
     await openStage(page, request, "s4-outpatient");
+    const outpatientStarted = Date.now();
     await expect(ehrRegion(page)).toBeVisible();
     await expect(pharmacyRegion(page)).toBeVisible();
     await expect(monitorRegion(page)).toBeVisible();
@@ -158,6 +159,7 @@ test.describe("講演モード", () => {
     await nextStep(page, 6);
     await expect(mine).toContainText("完了");
     await expect(page.getByTestId("btn-next")).toContainText("完了");
+    console.log(`外来の 6 ステップ（次へ ×6、確認の待ち時間を含む）: ${Date.now() - outpatientStarted} ms`); // SC-001（解説なしの操作のみ 2 分以内）
 
     // 戻る：初期化して、1 つ前のステップ（5）までを再現する。もう一度戻ると、ステップ 4 まで
     const progress = ehrRegion(page).getByTestId("rx-progress-1");
@@ -181,7 +183,9 @@ test.describe("講演モード", () => {
     await page.getByTestId("btn-fast-forward").click();
     await expect(page.getByTestId("explanation")).toContainText("ステップ 4：", { timeout: 60_000 });
     await expect(page.getByTestId("btn-next")).not.toContainText("実行中", { timeout: 60_000 });
-    expect(Date.now() - started).toBeLessThan(60_000); // SC-002
+    const elapsed = Date.now() - started;
+    console.log(`入院のステップ 1〜4（まとめて進める）: ${elapsed} ms`);
+    expect(elapsed).toBeLessThan(60_000); // SC-002
     await expect(pharmacyRegion(page).getByTestId("rx-pharmacy-row-1")).toContainText("入院（外科病棟）");
     await expect(pharmacyRegion(page).getByTestId("rx-pharmacy-row-1")).toContainText("監査中");
     // 途中の通信もすべて通信モニタに残る
@@ -289,3 +293,25 @@ test("自習モード：外来を選んで始められ、案内と違う操作�
   await pharmacyRegion(page).getByRole("button", { name: "薬剤師 E", exact: true }).click();
   await expect(page.getByTestId("guide-nudge")).toContainText("電子カルテ", SYNC);
 });
+
+// SC-003：操作の結果が、関係するほかの画面に 2 秒以内に反映される
+test("操作の結果は、ほかの画面に 2 秒以内に反映される", async ({ browser, request }) => {
+  const [doctor, pharmacy] = await openBase(browser, request, ["/ehr/rx?role=dr-x", "/pharmacy"]);
+  await pharmacy.waitForTimeout(1000); // 通知の登録を待つ
+  const mine = doctor.getByTestId("rx-row-1");
+  const theirs = pharmacy.getByTestId("rx-pharmacy-row-1");
+
+  let t = Date.now();
+  await prescribeOn(doctor);
+  await expect(theirs).toContainText("デモ 太郎", { timeout: 2000 });
+  const toPharmacy = Date.now() - t;
+
+  t = Date.now();
+  await pharmacyButton(pharmacy, "1", "受付・調剤開始").click();
+  await expect(mine).toContainText("調剤中", { timeout: 2000 });
+  const toDoctor = Date.now() - t;
+  console.log(`処方 → 薬剤部の画面: ${toPharmacy} ms、受付 → 電子カルテの画面: ${toDoctor} ms`);
+  expect(toPharmacy).toBeLessThan(2000);
+  expect(toDoctor).toBeLessThan(2000);
+});
+
