@@ -66,6 +66,26 @@ export function joinPrescriptions(
   return rows.sort((a, b) => Number(b.mr.resource.id) - Number(a.mr.resource.id));
 }
 
+const JAPAN_TIME = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+/**
+ * 「お渡し・払出」の列の表示。調剤の記録があれば「お渡し済み 10:20」「払出済み 10:20・投与中」
+ * （入院は払出の後も処方が有効のまま。未処理の処方に見せない）、無ければ薬剤部での進み具合。
+ */
+export function progressText(row: PrescriptionRow): string {
+  if (row.dispense) {
+    const md = row.dispense.resource;
+    const time = md.whenHandedOver ? ` ${JAPAN_TIME.format(new Date(md.whenHandedOver))}` : "";
+    const stillActive = md.destination && row.mr.resource.status === "active" ? "・投与中" : "";
+    return `${dispenseLabel(md)}${time}${stillActive}`;
+  }
+  const task = row.task?.resource;
+  if (!task) return "—";
+  if (task.status === "requested") return "薬剤部で受付待ち";
+  const business = businessStatusCode(task.businessStatus);
+  return business ? `薬剤部で${businessStatusLabel(business)}` : "—";
+}
+
 // ---- 一覧の変化（D-28 と同じ見せ方） ----
 
 const FIELDS = ["requestStatus", "status", "businessStatus", "owner", "dispense"] as const;

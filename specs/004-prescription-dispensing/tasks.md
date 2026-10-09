@@ -169,12 +169,12 @@ US3（講演モード）は US1・US2 の画面と操作を使ってシナリオ
 
 ### Tests for User Story 1
 
-- [ ] T020 [P] [US1] `server/src/test/java/jp/example/demo/integration/PharmacyFlow.java` を作る（`LabFlow`・`SlotFlow` と同じ形。FHIR マスタからコードを読み、UI の `builders/prescription.ts` と同じ要求を組み立てる）：
+- [X] T020 [P] [US1] `server/src/test/java/jp/example/demo/integration/PharmacyFlow.java` を作る（`LabFlow`・`SlotFlow` と同じ形。FHIR マスタからコードを読み、UI の `builders/prescription.ts` と同じ要求を組み立てる）：
   `prescribe(String client, String doctor, String patientId, String encounterIdOrNull, String medicationKey)`（Transaction。MedicationRequest と Task の id を返す）、
   `accept(String client, String taskId, String pharmacist, String etag)`・`startAudit(…)`（PATCH）、`dispenserFromHistory(String client, String taskId)`（`GET Task/{id}/_history` から `dispensing` の最後の版の owner）、
   `handOver(String client, String mrId, String mrEtag, String taskId, String taskEtag, String packager, String checker)`（3 件の Transaction）、`dispenseToWard(…)`（2 件の Transaction）、
   `dispenses(String mrId)`（`MedicationDispense?prescription=MedicationRequest/{id}` の件数）。どれも `HttpResponse<String>` を返し、`X-Demo-Client` を付ける
-- [ ] T021 [P] [US1] `server/src/test/java/jp/example/demo/integration/S4ScenarioIT.java` を作り、外来のテストを書く（`-Ds4.repeat`、既定 20 回。各回の始めに `/demo/reset`）：
+- [X] T021 [P] [US1] `server/src/test/java/jp/example/demo/integration/S4ScenarioIT.java` を作り、外来のテストを書く（`-Ds4.repeat`、既定 20 回。各回の始めに `/demo/reset`）：
   処方（`ehr-doctor`）→ 処方 `active`・作業 `requested`・`owner` 薬剤部、受付（`pharmacy-ph-c`）→ `in-progress`・`dispensing`・`PractitionerRole/ph-c`、監査（`pharmacy-ph-e`）→ `auditing`・`PractitionerRole/ph-e`、
   履歴から調剤者が `ph-c`、お渡し（`pharmacy-ph-e`）→ 処方 `completed`（版 2）・作業 `completed`（`businessStatus` なし・`output` → `MedicationDispense/{id}`）・調剤の記録がちょうど 1 件（`performer` が `packager` = ph-c と `checker` = ph-e、`receiver` = `Patient/demo-taro`、`destination` なし）。
   加えて：(a) お渡しの直前に処方を別の要求で更新しておくと、お渡しの Transaction が **412** で、調剤の記録が 0 件・作業は監査中のまま（全体の取り消し）。
@@ -183,29 +183,29 @@ US3（講演モード）は US1・US2 の画面と操作を使ってシナリオ
   (d) 検体検査の画面の条件（`Task?owner=Organization/lab-dept,PractitionerRole/tech-a,PractitionerRole/tech-b`）に処方の作業が一致しないこと（FR-009）。
   (e) `pharmacy-dept`（`Task?owner=…薬剤部…`）・`ehr-rx-dr-x`（`Task?requester=Practitioner/dr-x`）の Subscription に bind した WebSocket に、処方・受付・監査・お渡しのたびに ping が届くこと
   (f) 取りこぼし 0 件（SC-006）：各回の始め（`/demo/reset` の直後）に `/demo/traffic` の最大 `seq` を控え、外来の 6 ステップ分の操作を終えた後で、テストが送った `/fhir` の要求（Subscription の登録・版の履歴の取得を含む）の件数が、`kind = "http"` かつ `seq` が控えより大きい記録の件数と一致すること。`seq` に重複が無く、記録を `seq` 順に並べて数えること（`seq` は要求の受信時に採番されるため）
-- [ ] T022 [P] [US1] `ui/tests/unit/pharmacyRules.test.ts` を作る：純粋関数 `pharmacyActions(row, me)` が data-model.md §3.2 の表のとおりに、行の状態と操作する薬剤師から「表示する操作」「押せるか」「押せない理由」を返すこと：
+- [X] T022 [P] [US1] `ui/tests/unit/pharmacyRules.test.ts` を作る：純粋関数 `pharmacyActions(row, me)` が data-model.md §3.2 の表のとおりに、行の状態と操作する薬剤師から「表示する操作」「押せるか」「押せない理由」を返すこと：
   `requested` → 受付・調剤開始（押せる）。`in-progress`/`dispensing`・`owner` = 自分 → 監査を開始（押せない、「調剤した薬剤師とは別の薬剤師が監査します（薬剤師 E に切り替えてください）」）。`owner` ≠ 自分 → 押せる。
   `in-progress`/`auditing`・`owner` = 自分 → 外来は「監査を終えてお渡し」、入院は「監査を終えて払出」（押せる）。`owner` ≠ 自分 → 押せない、「監査を始めた薬剤師（薬剤師 E）が操作します」。
   `requested` の行に「監査を開始」を出さない。`completed` → 操作なし
 
 ### Implementation for User Story 1
 
-- [ ] T023 [US1] `ui/src/systems/pharmacy/pharmacyRules.ts` を作り、`pharmacyActions` を実装する（理由の文言の薬剤師の名前は `PHARMACISTS` から。切り替え先は「調剤した薬剤師ではないほう」）。T022 を通す
-- [ ] T024 [US1] 電子カルテの処方画面を作る（contracts/ui-screens.md「電子カルテ 処方」）：
+- [X] T023 [US1] `ui/src/systems/pharmacy/pharmacyRules.ts` を作り、`pharmacyActions` を実装する（理由の文言の薬剤師の名前は `PHARMACISTS` から。切り替え先は「調剤した薬剤師ではないほう」）。T022 を通す
+- [X] T024 [US1] 電子カルテの処方画面を作る（contracts/ui-screens.md「電子カルテ 処方」）：
   `ui/src/systems/ehr/PrescriptionForm.tsx`（患者 `data-guide="rx-patient"`・薬剤 `data-guide="rx-drug"`（表示名と HOT9 を併記）・1 回量と日数（変更可）・用法（表示のみ、JAMI コードを併記）・数量（表示のみ）・区分（患者に入院中の Encounter があるかで決まる表示。変更不可）・「処方する」`data-guide="rx-submit"`。既定値は `prescriptionDefaults`）、
   `ui/src/systems/ehr/PrescriptionScreen.tsx`（`/ehr/rx?role=dr-x|dr-y|ns-f`。props `role?`・`embedded?`。医師の役割では `useLiveData`（`clientId`：dr-x は `ehr-doctor`、dr-y は `ehr-doctor-y`、Subscription `ehr-rx-dr-x` / `ehr-rx-dr-y`、criteria `Task?requester=Practitioner/{dr}`、`load` は `loadDoctorPrescriptions`）で
   処方の一覧（`data-testid="rx-list"`、行 `data-testid="rx-row-{id}"`、列はオーダー番号・患者・薬剤と用法・区分・処方・作業（業務上の状態を併記）・担当・お渡し／払出）を表示し、`useRowChanges` で変化を示す。
   見出し「電子カルテ（医師 X）処方」、医師 X のときだけ「検体検査」（`/ehr?role=doctor`）へのリンク。`ns-f` は T032 で作るまで「準備中」を表示）。
   処方の失敗は `ErrorBanner` に表示して取り直す（自動でやり直さない）
-- [ ] T025 [US1] 薬剤部門システムを作る（contracts/ui-screens.md「薬剤部門システム」）：`ui/src/systems/pharmacy/PharmacyScreen.tsx`（`/pharmacy?pharmacist=ph-c|ph-e`。props `embedded?`・`pharmacist?`・`onPharmacistChange?`（ステージビューから制御するとき。無ければ URL の値を初期値にした画面内の状態））。
+- [X] T025 [US1] 薬剤部門システムを作る（contracts/ui-screens.md「薬剤部門システム」）：`ui/src/systems/pharmacy/PharmacyScreen.tsx`（`/pharmacy?pharmacist=ph-c|ph-e`。props `embedded?`・`pharmacist?`・`onPharmacistChange?`（ステージビューから制御するとき。無ければ URL の値を初期値にした画面内の状態））。
   `useLiveData`（`clientId: "pharmacy"`、Subscription `pharmacy-dept`、criteria `Task?owner=${PHARMACY_OWNERS}`、`load` は `loadPharmacyPrescriptions`）で一覧（`data-testid="pharmacy-list"`）を表示する。
   操作は薬剤師ごとの `FhirClient`（`pharmacy-ph-c`・`pharmacy-ph-e`）で送る。薬剤師の切り替えボタン「薬剤師 C」「薬剤師 E」（`aria-pressed`、**選択中のボタンは `disabled`**、`data-guide="pharmacist-ph-c"`・`data-guide="pharmacist-ph-e"` を**文字列のまま**書く）。
   行の操作は `pharmacyActions` に従い、「受付・調剤開始」`data-guide={\`rx-accept-${id}\`}`・「監査を開始」`rx-audit-${id}`・「監査を終えてお渡し」`rx-handover-${id}`、押せない理由を `data-testid="rx-hint-{id}"` に出す。
   412 は `dispenseConflictError`（お渡し）・既存の 412 表示（受付・監査）で示して取り直す。`demo.reset` を受けたら薬剤師 C に戻す（`monitorSocket.subscribe`。`LisScreen` の受付中の破棄と同じ書き方）
-- [ ] T026 [US1] 画面の入口をつなぐ：`ui/src/app/routes.tsx` に `/ehr/rx`（`PrescriptionScreen`）・`/pharmacy`（`PharmacyScreen`）を加える。`ui/src/systems/ehr/EhrScreen.tsx` の見出しに「処方」（`/ehr/rx?role=dr-x`）へのリンクを加える。
+- [X] T026 [US1] 画面の入口をつなぐ：`ui/src/app/routes.tsx` に `/ehr/rx`（`PrescriptionScreen`）・`/pharmacy`（`PharmacyScreen`）を加える。`ui/src/systems/ehr/EhrScreen.tsx` の見出しに「処方」（`/ehr/rx?role=dr-x`）へのリンクを加える。
   `ui/src/app/Launcher.tsx` の「個別のウィンドウで開く」に「電子カルテ 処方（医師 X）」（`/ehr/rx?role=dr-x`）・「薬剤部門システム」（`/pharmacy`）を加える
-- [ ] T027 [P] [US1] 版の履歴の表示を更新する：`ui/src/monitor/HistoryView.tsx` の `KIND` に `MedicationRequest: "medicationRequest"` を加え、MedicationDispense の状態は `dispenseLabel` で表示する。`ui/tests/unit/history.test.ts` に、MedicationRequest の版 1 → 版 2（`active` → `completed`）の違いが「処方の状態」として出ることのテストを加える
-- [ ] T028 [US1] E2E を作る：`ui/tests/e2e/pages.ts` に処方（患者・薬剤を選んで「処方する」）・薬剤部門システム（薬剤師の切り替え、行の操作）の共通操作を加え、`ui/tests/e2e/s4-prescription.spec.ts` に
+- [X] T027 [P] [US1] 版の履歴の表示を更新する：`ui/src/monitor/HistoryView.tsx` の `KIND` に `MedicationRequest: "medicationRequest"` を加え、MedicationDispense の状態は `dispenseLabel` で表示する。`ui/tests/unit/history.test.ts` に、MedicationRequest の版 1 → 版 2（`active` → `completed`）の違いが「処方の状態」として出ることのテストを加える
+- [X] T028 [US1] E2E を作る：`ui/tests/e2e/pages.ts` に処方（患者・薬剤を選んで「処方する」）・薬剤部門システム（薬剤師の切り替え、行の操作）の共通操作を加え、`ui/tests/e2e/s4-prescription.spec.ts` に
   「外来：個別ウィンドウで処方からお渡しまで」（`/ehr/rx?role=dr-x` と `/pharmacy` の 2 ページ。各操作の後に両ページの行が data-model.md §3.1 の状態になること。薬剤師 C のまま「監査を開始」が押せず理由が出ること、
   薬剤師 C に戻すと「監査を終えてお渡し」が押せないこと。最後に医師 X の行が「完了」「完了」「お渡し済み」）と、「検体検査の画面に処方が混ざらない」（`/lis?tech=tech-a` と `/ehr?role=doctor` の一覧に処方が出ない）を書く。
   UI をビルドして JAR を作り直してから実行する

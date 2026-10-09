@@ -5,6 +5,8 @@ import { StageView } from "./StageView";
 import { MonitorScreen } from "../monitor/MonitorScreen";
 import { CtBookingScreen } from "../systems/ehr/CtBookingScreen";
 import { EhrScreen } from "../systems/ehr/EhrScreen";
+import { PrescriptionScreen } from "../systems/ehr/PrescriptionScreen";
+import { PharmacyScreen } from "../systems/pharmacy/PharmacyScreen";
 import { LisScreen } from "../systems/lis/LisScreen";
 import { RisScreen } from "../systems/ris/RisScreen";
 
@@ -26,6 +28,8 @@ export function AppRoutes() {
       <Route path="/control" element={<ControlPanel />} />
       <Route path="/ehr" element={<EhrScreen />} />
       <Route path="/ehr/ct" element={<CtBookingScreen />} />
+      <Route path="/ehr/rx" element={<PrescriptionScreen />} />
+      <Route path="/pharmacy" element={<PharmacyScreen />} />
       <Route path="/lis" element={<LisScreen />} />
       <Route path="/ris" element={<RisScreen />} />
       <Route path="/monitor" element={<MonitorScreen />} />

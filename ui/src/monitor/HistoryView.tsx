@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FhirResource, Task } from "fhir/r4";
 import { FhirClient, type Versioned } from "../fhir/client";
-import { businessStatusCode, businessStatusLabel, holderName, statusLabel, type StatusKind } from "../fhir/labels";
+import { businessStatusCode, businessStatusLabel, dispenseLabel, holderName, statusLabel, type StatusKind } from "../fhir/labels";
 import type { TrafficRecord } from "../realtime/types";
 import { diffVersions, findCause, type VersionField } from "./history";
 import { clientName, resourceRefsIn } from "./sequenceModel";
@@ -12,6 +12,7 @@ const KIND: Record<string, StatusKind> = {
   DiagnosticReport: "diagnosticReport",
   Slot: "slot",
   Appointment: "appointment",
+  MedicationRequest: "medicationRequest",
 };
 
 /** リソースの版の履歴（FR-025）：版ごとの状態・担当者・更新日時と、その版を作った通信へのリンク。 */
@@ -97,7 +98,7 @@ export function HistoryView({
                   <tr key={vid}>
                     <td>{vid}</td>
                     <td {...(changed("status") || changed("businessStatus") ? mark(changed("status") ? "status" : "businessStatus") : {})}>
-                      {res.status ? `${KIND[type] ? statusLabel(KIND[type], res.status) : res.status} ` : ""}
+                      {res.status ? `${type === "MedicationDispense" ? dispenseLabel(v.resource as never) : KIND[type] ? statusLabel(KIND[type], res.status) : res.status} ` : ""}
                       {res.status && <span className="code">{res.status}</span>}
                       {biz && (
                         <>

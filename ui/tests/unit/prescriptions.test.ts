@@ -7,6 +7,7 @@ import {
   diffPrescriptionRows,
   drugText,
   joinPrescriptions,
+  progressText,
 } from "../../src/systems/shared/prescriptions";
 
 const v = <T>(resource: T, etag = 'W/"1"'): Versioned<T> => ({ resource, etag });
@@ -127,5 +128,29 @@ describe("diffPrescriptionRows", () => {
 
   it("reports nothing when nothing changed", () => {
     expect(diffPrescriptionRows(base({}), base({}))).toEqual([]);
+  });
+});
+
+describe("progressText", () => {
+  const row = (t: Partial<Task> | null, d?: MedicationDispense, m: Partial<MedicationRequest> = {}) =>
+    joinPrescriptions(
+      [v(mr("1", "Patient/demo-taro", m))],
+      t ? [v(task("10", "MedicationRequest/1", t))] : [],
+      d ? [v(d)] : [],
+      [v(patient("demo-taro", "デモ 太郎"))],
+      [],
+    )[0];
+
+  it("shows where the work is before anything was handed over", () => {
+    expect(progressText(row({ status: "requested" }))).toBe("薬剤部で受付待ち");
+    expect(progressText(row({ status: "in-progress", businessStatus: { coding: [{ code: "dispensing" }] } }))).toBe("薬剤部で調剤中");
+    expect(progressText(row({ status: "in-progress", businessStatus: { coding: [{ code: "auditing" }] } }))).toBe("薬剤部で監査中");
+    expect(progressText(row(null))).toBe("—");
+  });
+
+  it("shows the hand-over (outpatient) or the dispatch still being administered (inpatient) with the Japan time", () => {
+    const at = "2026-10-09T10:20:00+09:00";
+    expect(progressText(row({ status: "completed" }, dispense("100", "MedicationRequest/1", { receiver: [{ reference: "Patient/demo-taro" }], whenHandedOver: at }), { status: "completed" }))).toBe("お渡し済み 10:20");
+    expect(progressText(row({ status: "completed" }, dispense("100", "MedicationRequest/1", { destination: { reference: "Location/ward-surgery" }, whenHandedOver: at })))).toBe("払出済み 10:20・投与中");
   });
 });
