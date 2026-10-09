@@ -218,4 +218,58 @@ describe("ScenarioRunner", () => {
     expect(runner.getView().completed).toBe(3);
     expect(calls.filter((c) => c === "accept")).toHaveLength(1);
   });
+
+  it("runTo(n) runs the steps in order like next() until n steps are complete", async () => {
+    const runner = new ScenarioRunner(deps);
+    runner.start(makeScenario({ order, accept }));
+    await runner.runTo(2);
+    expect(calls).toEqual(["order"]); // ステップ 2 は自動（通知を待つだけ）
+    expect(runner.getView().completed).toBe(2);
+    expect(runner.getView().busy).toBe(false);
+    await runner.runTo(3);
+    expect(calls).toEqual(["order", "accept"]);
+    expect(runner.getView().completed).toBe(3);
+  });
+
+  it("runTo(n) does nothing when n steps are already complete", async () => {
+    const runner = new ScenarioRunner(deps);
+    runner.start(makeScenario({ order, accept }));
+    await runner.runTo(2);
+    calls.length = 0;
+    await runner.runTo(2);
+    await runner.runTo(1);
+    expect(calls).toEqual([]);
+    expect(runner.getView().completed).toBe(2);
+  });
+
+  it("runTo(n) stops where a step does not complete and shows the waiting state like next()", async () => {
+    const runner = new ScenarioRunner(deps);
+    runner.start(makeScenario({ order: async () => { calls.push("order"); state = S1; store.add(http("ehr-doctor", "POST", "/fhir")); }, accept }));
+    await runner.runTo(3); // 通知が来ないのでステップ 2 で止まる
+    expect(calls).toEqual(["order"]);
+    expect(runner.getView().completed).toBe(1);
+    expect(runner.getView().waiting).toBe(true);
+    expect(runner.getView().busy).toBe(false);
+  });
+
+  it("runTo(n) stops at a step that fails and reports its error", async () => {
+    const runner = new ScenarioRunner(deps);
+    runner.start(makeScenario({ order: async () => { throw new Error("送れません"); }, accept }));
+    await runner.runTo(3);
+    expect(runner.getView().completed).toBe(0);
+    expect(runner.getView().error).toBe("送れません");
+  });
+
+  it("next() and back() are ignored while runTo is running", async () => {
+    const runner = new ScenarioRunner(deps);
+    runner.start(makeScenario({ order, accept }));
+    const running = runner.runTo(2);
+    expect(runner.getView().busy).toBe(true);
+    await runner.next();
+    await runner.back();
+    await running;
+    expect(calls).toEqual(["order"]);
+    expect(runner.getView().completed).toBe(2);
+  });
 });
+

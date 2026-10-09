@@ -4,11 +4,12 @@ import { resetDemo } from "../realtime/demoApi";
 import { startTrafficSync, trafficStore } from "../realtime/trafficStore";
 import { ScenarioRunner, type RunnerView } from "./runner";
 import { s1Main } from "./s1Main";
+import { s4Inpatient, s4Outpatient } from "./s4Prescription";
 import { VARIATIONS } from "./variations";
 import { loadScenarioState } from "./state";
 import type { Scenario } from "./types";
 
-export const SCENARIOS: Scenario[] = [s1Main, ...VARIATIONS];
+export const SCENARIOS: Scenario[] = [s1Main, ...VARIATIONS, s4Outpatient, s4Inpatient];
 
 interface ScenarioContextValue {
   runner: ScenarioRunner;

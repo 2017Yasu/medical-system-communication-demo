@@ -35,6 +35,11 @@ export function ProgressPanel() {
           <button type="button" onClick={() => void runner.back()} disabled={view.busy || view.completed === 0} data-testid="btn-back">
             ◀ 戻る
           </button>
+          {scenario.fastForward && view.completed < scenario.fastForward.to && (
+            <button type="button" onClick={() => void runner.runTo(scenario.fastForward!.to)} disabled={view.busy} data-testid="btn-fast-forward">
+              {scenario.fastForward.label}
+            </button>
+          )}
           <button type="button" className="primary" onClick={() => void runner.next()} disabled={view.busy || done} data-testid="btn-next">
             {view.busy ? "実行中…" : done ? "完了" : `次へ ▶（${nextStep.no}. ${nextStep.title}）`}
           </button>

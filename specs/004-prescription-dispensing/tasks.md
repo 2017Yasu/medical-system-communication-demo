@@ -254,34 +254,34 @@ US3（講演モード）は US1・US2 の画面と操作を使ってシナリオ
 
 ### Tests for User Story 3
 
-- [ ] T036 [P] [US3] `ui/tests/unit/stageRoles.test.ts` を作る：純粋関数 `stageTargets(scenario, completed, mode)` が data-model.md §5 のとおりに `{ role, pharmacist }` を返すこと。
+- [X] T036 [P] [US3] `ui/tests/unit/stageRoles.test.ts` を作る：純粋関数 `stageTargets(scenario, completed, mode)` が data-model.md §5 のとおりに `{ role, pharmacist }` を返すこと。
   基準のステップは講演モードで `max(0, completed - 1)`、自習モードで `min(completed, steps.length - 1)`。そのステップまでで最後に指定された `target.role`・`target.pharmacist` を使う。
   外来：講演モードで `completed = 3`（ステップ 3 を解説中）→ 薬剤師 `ph-c`、`completed = 4` → `ph-e`、電子カルテは常に `dr-x`。入院：講演モードで `completed = 5` → 電子カルテ `dr-y`、`completed = 6` → `ns-f`。
   **自習モードでは `pharmacist` を返さない**（`undefined`）。S1 のシナリオ（`stage` が `lab`）では講演モードで `role` を返さない（S1 の振る舞いを変えない）
-- [ ] T037 [P] [US3] `ui/tests/unit/scenarioRunner.test.ts` に `runTo(n)` のテストを加える：完了したステップが n になるまで「次へ」と同じ処理（`run` → 完了の判定）を続ける。途中のステップが完了しない（期限切れ）・失敗したときはそこで止まり、`waiting` / `error` が「次へ」と同じに設定される。
+- [X] T037 [P] [US3] `ui/tests/unit/scenarioRunner.test.ts` に `runTo(n)` のテストを加える：完了したステップが n になるまで「次へ」と同じ処理（`run` → 完了の判定）を続ける。途中のステップが完了しない（期限切れ）・失敗したときはそこで止まり、`waiting` / `error` が「次へ」と同じに設定される。
   既に n 以上なら何もしない。実行中は `busy` が true で、`next`・`back` が無視される
-- [ ] T038 [P] [US3] `ui/tests/unit/scenarios.test.ts` を更新する：シナリオの一覧が `["s1-main", "s1-cancel", "s1-reject", "s1-rerun", "s1-partial", "s4-outpatient", "s4-inpatient"]`。
+- [X] T038 [P] [US3] `ui/tests/unit/scenarios.test.ts` を更新する：シナリオの一覧が `["s1-main", "s1-cancel", "s1-reject", "s1-rerun", "s1-partial", "s4-outpatient", "s4-inpatient"]`。
   `existsInScreens` の正規表現に `ph-c|ph-e` を加えない代わりに、`pharmacist-ph-c`・`pharmacist-ph-e` は文字列の `data-guide` として存在することを確かめる（T025 で文字列のまま書く）。
   S4 の 2 つは `stage = "pharmacy"`・ステップ 6 つ・`loadState` を持つ。`fastForward` は入院だけにあり `to = 4`。ステップ 2〜4 の `title`・`expected`（データの条件と通信の条件）が外来と入院で同じ。
   外来のステップ 5 の `expected.medicationRequest` が `completed`、入院が `active`。解説（業務・FHIR）に「MedicationRequest」「Task」「作業」「依頼」の語が、入院のステップ 5 に「active」が含まれる（FR-030）
 
 ### Implementation for User Story 3
 
-- [ ] T039 [US3] `ui/src/scenario/runner.ts` に `runTo(n: number)` を実装する（`back()` の再実行の部分と同じく `advance()` を繰り返す。初期化はしない）。T037 を通す
-- [ ] T040 [US3] シナリオを作る：`ui/src/scenario/s4State.ts`（`loadPrescriptionScenarioState(doctorRef)(client)`：data-model.md §4.4。`fetchLatestPrescription` と `MedicationDispense?prescription=…` から `medicationRequest`・`task`（status・`businessStatusCode`・`owner`）・`medicationDispense` を返す。処方が無ければ `{ medicationDispense: "none" }`）と、
+- [X] T039 [US3] `ui/src/scenario/runner.ts` に `runTo(n: number)` を実装する（`back()` の再実行の部分と同じく `advance()` を繰り返す。初期化はしない）。T037 を通す
+- [X] T040 [US3] シナリオを作る：`ui/src/scenario/s4State.ts`（`loadPrescriptionScenarioState(doctorRef)(client)`：data-model.md §4.4。`fetchLatestPrescription` と `MedicationDispense?prescription=…` から `medicationRequest`・`task`（status・`businessStatusCode`・`owner`）・`medicationDispense` を返す。処方が無ければ `{ medicationDispense: "none" }`）と、
   `ui/src/scenario/s4Prescription.ts`（`s4Outpatient`・`s4Inpatient`。data-model.md §4.2・§4.3 の actor・target・通信の条件・期待するデータの状態（§3.1）。ステップ 2〜4 は共通の関数で作る。
   `run` は `prescriptionActions.ts` の関数を、そのステップの送信元の `FhirClient`（`ctx.clients[...]`）で呼ぶ。入院の `fastForward` = `{ to: 4, label: "ステップ 4 まで進める（外来と同じ部分）" }`。
   解説は docs/02 S4 の「解説ポイント」を業務上の意味・FHIR 上の意味に分けて書く：依頼のリソースが部門で異なる（ServiceRequest／MedicationRequest）、作業の仕組みは共通、別の薬剤師が監査する（Task.owner の変化、MedicationDispense.performer、版の履歴から調剤者を読む）、
   外来は処方まで完了・入院は処方が active のまま（「作業が終わった」と「依頼がすべて済んだ」は別）、MERIT9 区分・HOT コード・JAMI 用法コード）。
   `ui/src/scenario/ScenarioProvider.tsx` の `SCENARIOS` の末尾に 2 つを加える。T038 を通す
-- [ ] T041 [US3] `ui/src/app/stageRoles.ts` を作り `stageTargets` を実装する（T036 を通す）。`ui/src/app/StageView.tsx` を更新する：
+- [X] T041 [US3] `ui/src/app/stageRoles.ts` を作り `stageTargets` を実装する（T036 を通す）。`ui/src/app/StageView.tsx` を更新する：
   `?scenario=` を `ScenarioProvider` の初期のシナリオに渡す（不正なら `s1-main`）。選ばれたシナリオの `stage` が `pharmacy` のとき、列を「電子カルテ」（タブはシナリオのステップに出てくる `target.role` だけ：外来は「医師 X」、入院は「医師 Y」「看護師 F（外科病棟）」。
   タブの画面（`PrescriptionScreen embedded role=…`）は**すべて配置し `hidden` で表示だけを切り替える**）・「薬剤部門システム（薬剤師 C / 薬剤師 E）」（`PharmacyScreen embedded`、薬剤師はステージの状態で制御）・「通信モニタ」にし、`data-guide-region` を `ehr`・`pharmacy` にする。
   `stageTargets` の値が**変わったときだけ**役割・薬剤師を切り替える（手の切り替えを上書きし続けない）。`stage` が `lab` のときは今までの描画とまったく同じにする（FR-033）
-- [ ] T042 [US3] `ui/src/app/ProgressPanel.tsx` に、シナリオに `fastForward` があり完了したステップが `to` 未満のとき `fastForward.label` のボタン（`data-testid="btn-fast-forward"`、`busy` の間は押せない）を加え、`runner.runTo(to)` を呼ぶ
-- [ ] T043 [US3] `ui/src/app/Launcher.tsx` に「S4 処方調剤」の欄（`aria-label="S4 処方調剤"`）を加える：講演モード（`/stage?mode=presentation&scenario=s4-outpatient`）、自習モード 外来（`/stage?mode=self-study&scenario=s4-outpatient`）・入院（`…&scenario=s4-inpatient`）、
+- [X] T042 [US3] `ui/src/app/ProgressPanel.tsx` に、シナリオに `fastForward` があり完了したステップが `to` 未満のとき `fastForward.label` のボタン（`data-testid="btn-fast-forward"`、`busy` の間は押せない）を加え、`runner.runTo(to)` を呼ぶ
+- [X] T043 [US3] `ui/src/app/Launcher.tsx` に「S4 処方調剤」の欄（`aria-label="S4 処方調剤"`）を加える：講演モード（`/stage?mode=presentation&scenario=s4-outpatient`）、自習モード 外来（`/stage?mode=self-study&scenario=s4-outpatient`）・入院（`…&scenario=s4-inpatient`）、
   個別ウィンドウ（`/ehr/rx?role=dr-x`・`dr-y`・`ns-f`、`/pharmacy`）へのリンク
-- [ ] T044 [US3] `ui/tests/e2e/s4-prescription.spec.ts` に講演モードのテストを加える：
+- [X] T044 [US3] `ui/tests/e2e/s4-prescription.spec.ts` に講演モードのテストを加える：
   「外来：次へで最後まで」（`/stage?mode=presentation&scenario=s4-outpatient`。列の見出しが電子カルテ・薬剤部門システム・通信モニタ、各ステップで `explanation` が変わること、ステップ 4 の後に薬剤部門システムが薬剤師 E になること、最後に医師 X の行が「お渡し済み」。
   「戻る」でステップ 5 の完了時点に戻ること）、「入院：まとめて送ってから払出」（シナリオの選択で入院に切り替え、`btn-fast-forward` を押して **60 秒以内**にステップ 4 まで完了、通信モニタに処方・受付・監査の通信があること、
   「次へ」2 回で電子カルテの列が看護師 F になり「払出済み」が見えること）、「手動の操作に追従する」（講演モードの外来で、画面のボタンで処方・受付をしてステップの表示が進むこと）。
@@ -300,16 +300,16 @@ US3（講演モード）は US1・US2 の画面と操作を使ってシナリオ
 
 ### Tests for User Story 4
 
-- [ ] T045 [P] [US4] `ui/tests/unit/guide.test.ts` にテストを加える：純粋関数 `guideInstruction(step, currentPharmacist)` が、`target.screen = "pharmacy"` で「薬剤部門システム（薬剤師 C）の、枠が点滅している部分を操作してください。」、電子カルテは役割の名前（医師 X・医師 Y・看護師 F）を併記し、
+- [X] T045 [P] [US4] `ui/tests/unit/guide.test.ts` にテストを加える：純粋関数 `guideInstruction(step, currentPharmacist)` が、`target.screen = "pharmacy"` で「薬剤部門システム（薬剤師 C）の、枠が点滅している部分を操作してください。」、電子カルテは役割の名前（医師 X・医師 Y・看護師 F）を併記し、
   `target.pharmacist` と `currentPharmacist` が違うときは「薬剤師 E に切り替えてください。」を加えること。`applyHighlight` が `disabled` の切り替えボタン（選択中の薬剤師）を強調しないこと（既存の振る舞いの確認）。
   促しの画面名に `pharmacy` →「薬剤部門システム」があること
 
 ### Implementation for User Story 4
 
-- [ ] T046 [US4] `ui/src/guide/useGuide.ts` の `REGION_NAME` に `pharmacy: "薬剤部門システム"` を加え、`guideInstruction` を実装する（T045 を通す）。`ui/src/guide/GuideOverlay.tsx` を更新する：
+- [X] T046 [US4] `ui/src/guide/useGuide.ts` の `REGION_NAME` に `pharmacy: "薬剤部門システム"` を加え、`guideInstruction` を実装する（T045 を通す）。`ui/src/guide/GuideOverlay.tsx` を更新する：
   進行パネルと同じシナリオの選択（`data-testid="scenario-select"`、`busy` の間は押せない）を置き、案内の文言を `guideInstruction` にする。現在の薬剤師は `StageView` から props（`currentPharmacist`）で受け取る（`ui/src/app/StageView.tsx` で渡す）。
   S1 の自習モードの文言（「電子カルテ（医師 X）の、…」「検体検査システムの、…」）が変わらないこと
-- [ ] T047 [US4] `ui/tests/e2e/s4-prescription.spec.ts` に自習モードのテストを加える：「入院をガイドどおりに最後まで」（`/stage?mode=self-study&scenario=s4-inpatient`。各ステップで強調表示された要素だけを押して進む。
+- [X] T047 [US4] `ui/tests/e2e/s4-prescription.spec.ts` に自習モードのテストを加える：「入院をガイドどおりに最後まで」（`/stage?mode=self-study&scenario=s4-inpatient`。各ステップで強調表示された要素だけを押して進む。
   ステップ 4 で薬剤部門システムが薬剤師 C のままだと案内に「薬剤師 E に切り替えてください」が出て `pharmacist-ph-e` が強調されること、最後に「最初から」で初期状態に戻ること）。
   既存の `ui/tests/e2e/self-study.spec.ts`（S1）が変わらず通ること。UI を変えたら JAR を作り直してから実行する
 

@@ -119,6 +119,26 @@ export class ScenarioRunner {
     }
   }
 
+  /**
+   * 完了したステップが n になるまで、「次へ」と同じ処理（そのステップの自動実行 → 完了の判定を待つ）を続けて行う（D-52）。
+   * 初期化はしない。途中で完了しない（通知を待つ）・失敗したときは、そこで止めて「次へ」と同じ表示にする。
+   */
+  async runTo(n: number): Promise<void> {
+    const scenario = this.view.scenario;
+    if (!scenario || this.view.busy) return;
+    const target = Math.min(n, scenario.steps.length);
+    if (this.view.completed >= target) return;
+    this.update({ ...this.view, busy: true, waiting: false, error: null });
+    try {
+      while (this.view.completed < target) {
+        const ok = await this.advance();
+        if (!ok) break;
+      }
+    } finally {
+      this.update({ ...this.view, busy: false });
+    }
+  }
+
   /** 初期化して、1 つ前のステップまでを再実行する（FR-027）。 */
   async back(): Promise<void> {
     const scenario = this.view.scenario;

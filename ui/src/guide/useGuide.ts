@@ -1,6 +1,7 @@
 // 自習モードの案内：次に操作する画面とボタンの特定、強調表示、案内と違う操作への促し（FR-029、US4）。
 import { useEffect, useState } from "react";
 import { useScenario } from "../scenario/ScenarioProvider";
+import type { PharmacistId } from "../fhir/builders/prescription";
 import type { ScenarioStep } from "../scenario/types";
 
 export interface Guide {
@@ -17,6 +18,35 @@ export interface Guide {
 }
 
 const REGION_NAME = { ehr: "電子カルテ", lis: "検体検査システム", pharmacy: "薬剤部門システム" } as const;
+
+const ROLE_SUFFIX: Record<string, string> = {
+  doctor: "（医師 X）",
+  nurse: "（看護師 D）",
+  "dr-x": "（医師 X）",
+  "dr-y": "（医師 Y）",
+  "ns-f": "（看護師 F）",
+};
+const PHARMACIST_NAME: Record<PharmacistId, string> = { "ph-c": "薬剤師 C", "ph-e": "薬剤師 E" };
+
+/**
+ * 次に操作する画面と場所の案内文。電子カルテは役割、薬剤部門システムは操作する薬剤師を併記する。
+ * 案内する薬剤師と画面で選ばれている薬剤師が違うときは、切り替えを案内する（US4 シナリオ 3）。
+ */
+export function guideInstruction(step: ScenarioStep, currentPharmacist?: PharmacistId): string {
+  const screen = REGION_NAME[step.target.screen];
+  if (step.actor === "auto") return `${screen}に、通知が届くのを待っています。何も操作しなくても、画面が自動で更新されます。`;
+  const who =
+    step.target.screen === "pharmacy" && step.target.pharmacist
+      ? `（${PHARMACIST_NAME[step.target.pharmacist]}）`
+      : step.target.screen === "ehr" && step.target.role
+        ? ROLE_SUFFIX[step.target.role]
+        : "";
+  const base = `${screen}${who}の、枠が点滅している部分を操作してください。`;
+  const guided = step.target.pharmacist;
+  return step.target.screen === "pharmacy" && guided && currentPharmacist && guided !== currentPharmacist
+    ? `${base}${PHARMACIST_NAME[guided]} に切り替えてください。`
+    : base;
+}
 
 export function controlsOf(step: ScenarioStep | null): string[] {
   return step?.target.control?.split(",").filter(Boolean) ?? [];

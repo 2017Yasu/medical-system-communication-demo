@@ -1,12 +1,11 @@
 import { useScenario } from "../scenario/ScenarioProvider";
-import { useGuide } from "./useGuide";
-
-const REGION = { ehr: "電子カルテ", lis: "検体検査システム", pharmacy: "薬剤部門システム" } as const;
+import type { PharmacistId } from "../fhir/builders/prescription";
+import { guideInstruction, useGuide } from "./useGuide";
 
 /** 自習モードのガイド：次に操作する画面とボタンの案内、各ステップの解説、「最初から」（FR-029）。 */
-export function GuideOverlay() {
+export function GuideOverlay({ currentPharmacist }: { currentPharmacist?: PharmacistId } = {}) {
   const guide = useGuide();
-  const { view } = useScenario();
+  const { view, scenarios, scenarioId, selectScenario } = useScenario();
   if (!view.scenario) return <section className="panel">ガイドを準備しています…</section>;
   const { step, doneStep } = guide;
 
@@ -16,9 +15,24 @@ export function GuideOverlay() {
         <strong style={{ fontSize: "var(--fs-large)" }}>
           {guide.finished ? "最後まで完了しました" : `ステップ ${guide.completed + 1} / ${guide.total}`}
         </strong>
-        <button type="button" onClick={guide.restart} disabled={view.busy} data-testid="btn-restart">
-          最初から
-        </button>
+        <span className="row">
+          <select
+            value={scenarioId}
+            onChange={(e) => selectScenario(e.target.value)}
+            disabled={view.busy}
+            aria-label="シナリオ"
+            data-testid="scenario-select"
+          >
+            {scenarios.map((sc) => (
+              <option key={sc.id} value={sc.id}>
+                {sc.title}
+              </option>
+            ))}
+          </select>
+          <button type="button" onClick={guide.restart} disabled={view.busy} data-testid="btn-restart">
+            最初から
+          </button>
+        </span>
       </div>
 
       {step && (
@@ -26,17 +40,9 @@ export function GuideOverlay() {
           <p style={{ margin: 0, fontSize: "var(--fs-large)" }}>
             <strong>{step.title}</strong>
           </p>
-          {step.actor === "auto" ? (
-            <p role="status" style={{ margin: "var(--sp-1) 0" }}>
-              {REGION[step.target.screen]}に、通知が届くのを待っています。何も操作しなくても、画面が自動で更新されます。
-            </p>
-          ) : (
-            <p style={{ margin: "var(--sp-1) 0" }}>
-              {REGION[step.target.screen]}
-              {step.target.role === "nurse" ? "（看護師 D）" : step.target.role === "doctor" ? "（医師 X）" : ""}
-              の、枠が点滅している部分を操作してください。
-            </p>
-          )}
+          <p role={step.actor === "auto" ? "status" : undefined} style={{ margin: "var(--sp-1) 0" }}>
+            {guideInstruction(step, currentPharmacist)}
+          </p>
           <p className="muted" style={{ margin: 0 }}>
             {step.explanation.business}
           </p>
