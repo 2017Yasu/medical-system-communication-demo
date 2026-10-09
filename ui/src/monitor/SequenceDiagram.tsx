@@ -6,6 +6,7 @@ const TITLES: Partial<Record<Lane, string>> = {
   server: "FHIR サーバー",
   lis: "検体検査システム",
   ris: "放射線部門システム",
+  pharmacy: "薬剤部門システム",
 };
 const WIDTH = 900;
 
@@ -13,7 +14,7 @@ const WIDTH = 900;
 function positions(lanes: Lane[]): Record<Lane, number> {
   const x = Object.fromEntries(lanes.map((lane, i) => [lane, (WIDTH * (i + 0.5)) / lanes.length])) as Partial<Record<Lane, number>>;
   const server = x.server ?? WIDTH / 2;
-  return { ehr: x.ehr ?? server, server, lis: x.lis ?? server, ris: x.ris ?? server, monitor: server, other: server };
+  return { ehr: x.ehr ?? server, server, lis: x.lis ?? server, ris: x.ris ?? server, pharmacy: x.pharmacy ?? server, monitor: server, other: server };
 }
 const ROW = 64;
 const TOP = 56;

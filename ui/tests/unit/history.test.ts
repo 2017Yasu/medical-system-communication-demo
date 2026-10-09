@@ -111,3 +111,26 @@ describe("S3: slot history (specs/003 R-10)", () => {
     expect(diffs[1].causeClient).toBe("ehr-doctor");
   });
 });
+
+describe("S4: prescription history (specs/004)", () => {
+  const mr = (versionId: string, status: string) => ({
+    resource: { resourceType: "MedicationRequest", id: "1", status, meta: { versionId } },
+    etag: `W/"${versionId}"`,
+  });
+  const handOverTx = rec(
+    7,
+    "POST",
+    "/fhir",
+    200,
+    '{"entry":[{"response":{"location":"MedicationDispense/1/_history/1"}},{"response":{"location":"Task/1/_history/4"}},{"response":{"location":"MedicationRequest/1/_history/2"}}]}',
+  );
+
+  it("shows that the hand-over transaction from the pharmacy completed the prescription", () => {
+    const record = { ...handOverTx, client: "pharmacy-ph-e" };
+    const diffs = diffVersions([mr("2", "completed"), mr("1", "active")] as never, [record]);
+    expect(diffs[0].changed).toEqual(["status"]);
+    expect(diffs[0].causeClient).toBe("pharmacy-ph-e");
+    expect(findCause([record], "MedicationRequest", "1", "1")).toBeUndefined();
+  });
+});
+

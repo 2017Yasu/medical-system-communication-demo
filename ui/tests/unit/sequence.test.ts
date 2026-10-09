@@ -246,4 +246,18 @@ describe("S3: the slot hold expiry as a server-side action (specs/003 R-06)", ()
   it("ignores a server record without an action", () => {
     expect(buildSequence([{ ...expiry(6), serverAction: null }])).toEqual([]);
   });
+
+  it("puts the pharmacy department system in its own lane and names the S4 clients", () => {
+    expect(laneOf("pharmacy")).toBe("pharmacy");
+    expect(laneOf("pharmacy-ph-c")).toBe("pharmacy");
+    expect(laneOf("ehr-nurse-f")).toBe("ehr");
+    expect(clientName("pharmacy")).toBe("薬剤部門システム");
+    expect(clientName("pharmacy-ph-c")).toBe("薬剤師 C");
+    expect(clientName("pharmacy-ph-e")).toBe("薬剤師 E");
+    expect(clientName("ehr-nurse-f")).toBe("看護師 F");
+    const rx = buildSequence([http(1, "pharmacy-ph-c", "PATCH", "/fhir/Task/1")]);
+    expect(lanesFor(rx)).toEqual(["ehr", "server", "pharmacy"]);
+    const lab = buildSequence([http(2, "lis-tech-a", "GET", "/fhir/Task/1")]);
+    expect(lanesFor([...lab, ...rx])).toEqual(["ehr", "server", "lis", "pharmacy"]);
+  });
 });

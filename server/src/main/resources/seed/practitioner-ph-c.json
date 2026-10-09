@@ -1,0 +1,21 @@
+{
+  "resourceType": "Practitioner",
+  "id": "ph-c",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Practitioner"
+    ]
+  },
+  "identifier": [
+    {
+      "system": "https://demo.example.jp/fhir/sid/staff-number",
+      "value": "ph-c"
+    }
+  ],
+  "name": [
+    {
+      "use": "official",
+      "text": "薬剤師 C"
+    }
+  ]
+}

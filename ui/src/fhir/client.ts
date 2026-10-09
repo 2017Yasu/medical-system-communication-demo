@@ -4,7 +4,7 @@
 import type { Bundle, FhirResource, OperationOutcome } from "fhir/r4";
 import { type DisplayError, toDisplayError } from "./errors";
 
-export type ClientId = "ehr-doctor" | "ehr-doctor-y" | "ehr-nurse" | "lis-tech-a" | "lis-tech-b" | "ris" | "monitor";
+export type ClientId = "ehr-doctor" | "ehr-doctor-y" | "ehr-nurse" | "ehr-nurse-f" | "pharmacy" | "pharmacy-ph-c" | "pharmacy-ph-e" | "lis-tech-a" | "lis-tech-b" | "ris" | "monitor";
 
 /** リソースとその ETag（`W/"3"`）。更新時に If-Match として返す。 */
 export interface Versioned<T> {

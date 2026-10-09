@@ -1,8 +1,9 @@
 // 表示ラベル（docs/04-design-rules.md「表示ラベル」、data-model.md §3.3）。
 // 画面は業務用語を主に表示し、FHIR のコード値を併記する（原則 V）。
+import type { MedicationDispense, MedicationRequest } from "fhir/r4";
 import master from "../master/fhir-master.json";
 
-export type StatusKind = "task" | "serviceRequest" | "diagnosticReport" | "slot" | "appointment";
+export type StatusKind = "task" | "serviceRequest" | "medicationRequest" | "diagnosticReport" | "slot" | "appointment";
 
 const LABELS: Record<StatusKind, Record<string, string>> = {
   task: {
@@ -16,6 +17,12 @@ const LABELS: Record<StatusKind, Record<string, string>> = {
     cancelled: "取消",
   },
   serviceRequest: {
+    active: "有効（依頼中）",
+    revoked: "取消",
+    completed: "完了",
+    "on-hold": "保留",
+  },
+  medicationRequest: {
     active: "有効（依頼中）",
     revoked: "取消",
     completed: "完了",
@@ -36,9 +43,14 @@ const LABELS: Record<StatusKind, Record<string, string>> = {
   },
 };
 
-const BUSINESS_STATUS: Record<string, string> = Object.fromEntries(
-  master.businessStatuses.map((b) => [b.code, b.display]),
+const PHARM_BUSINESS_STATUS: Record<string, string> = Object.fromEntries(
+  master.pharmBusinessStatuses.map((b) => [b.code, b.display]),
 );
+
+const BUSINESS_STATUS: Record<string, string> = {
+  ...Object.fromEntries(master.businessStatuses.map((b) => [b.code, b.display])),
+  ...PHARM_BUSINESS_STATUS,
+};
 
 /** 業務用語のラベル。未知のコードはそのまま返す。 */
 export function statusLabel(kind: StatusKind, code: string): string {
@@ -93,4 +105,27 @@ export function holderName(comment: string | undefined | null): string | null {
 /** 仮押さえの comment（「仮押さえ：医師 X」）。 */
 export function holdComment(doctorName: string): string {
   return `${HOLD_PREFIX}${doctorName}`;
+}
+
+/** 薬剤の業務上の状態（Task.businessStatus のコード。調剤中・監査中）の表示。未知のコードはそのまま返す。 */
+export function pharmBusinessStatusLabel(code: string): string {
+  return PHARM_BUSINESS_STATUS[code] ?? code;
+}
+
+/** 調剤の記録の表示：払出先（destination）があれば「払出済み」、受取人（receiver）があれば「お渡し済み」（docs/04）。 */
+export function dispenseLabel(md: MedicationDispense): string {
+  return md.destination ? "払出済み" : "お渡し済み";
+}
+
+const INPATIENT_CATEGORY = master.codings.categoryInpatient.code;
+
+/** 処方の種別：MERIT9 区分に入院処方（IHP）があれば入院、なければ外来（D-44）。 */
+export function prescriptionKind(mr: MedicationRequest): "outpatient" | "inpatient" {
+  const codes = (mr.category ?? []).flatMap((c) => c.coding ?? []).map((c) => c.code);
+  return codes.includes(INPATIENT_CATEGORY) ? "inpatient" : "outpatient";
+}
+
+/** 処方の区分の表示：MERIT9 の表示名を「・」でつなぐ（「外来処方・院内処方」「入院処方・臨時処方」）。 */
+export function categoryLabel(mr: MedicationRequest): string {
+  return (mr.category ?? []).map((c) => c.coding?.[0]?.display ?? c.text ?? "").filter(Boolean).join("・");
 }

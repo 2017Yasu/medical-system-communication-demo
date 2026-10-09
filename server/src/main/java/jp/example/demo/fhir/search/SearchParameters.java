@@ -11,7 +11,10 @@ import java.util.regex.Pattern;
 import org.hl7.fhir.r4.model.Appointment;
 import org.hl7.fhir.r4.model.CodeableConcept;
 import org.hl7.fhir.r4.model.DiagnosticReport;
+import org.hl7.fhir.r4.model.Encounter;
 import org.hl7.fhir.r4.model.Identifier;
+import org.hl7.fhir.r4.model.MedicationDispense;
+import org.hl7.fhir.r4.model.MedicationRequest;
 import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Reference;
@@ -36,6 +39,7 @@ public final class SearchParameters {
         task.put("status", r -> code(((Task) r).getStatusElement().getValueAsString()));
         task.put("focus", r -> ref(((Task) r).getFocus()));
         task.put("patient", r -> ref(((Task) r).getFor()));
+        task.put("encounter", r -> ref(((Task) r).getEncounter()));
         DEFS.put("Task", task);
 
         Map<String, Function<Resource, List<String>>> sr = new LinkedHashMap<>();
@@ -49,6 +53,30 @@ public final class SearchParameters {
         slot.put("schedule", r -> ref(((Slot) r).getSchedule()));
         slot.put("status", r -> code(((Slot) r).getStatusElement().getValueAsString()));
         DEFS.put("Slot", slot);
+
+        Map<String, Function<Resource, List<String>>> mr = new LinkedHashMap<>();
+        mr.put("requester", r -> ref(((MedicationRequest) r).getRequester()));
+        mr.put("subject", r -> ref(((MedicationRequest) r).getSubject()));
+        mr.put("encounter", r -> ref(((MedicationRequest) r).getEncounter()));
+        mr.put("status", r -> code(((MedicationRequest) r).getStatusElement().getValueAsString()));
+        DEFS.put("MedicationRequest", mr);
+
+        Map<String, Function<Resource, List<String>>> md = new LinkedHashMap<>();
+        md.put("prescription", r -> refs(((MedicationDispense) r).getAuthorizingPrescription()));
+        md.put("subject", r -> ref(((MedicationDispense) r).getSubject()));
+        DEFS.put("MedicationDispense", md);
+
+        Map<String, Function<Resource, List<String>>> encounter = new LinkedHashMap<>();
+        encounter.put("patient", r -> ref(((Encounter) r).getSubject()));
+        encounter.put("location", r -> {
+            List<String> out = new ArrayList<>();
+            for (Encounter.EncounterLocationComponent l : ((Encounter) r).getLocation()) {
+                out.addAll(ref(l.getLocation()));
+            }
+            return out;
+        });
+        encounter.put("status", r -> code(((Encounter) r).getStatusElement().getValueAsString()));
+        DEFS.put("Encounter", encounter);
 
         Map<String, Function<Resource, List<String>>> appointment = new LinkedHashMap<>();
         appointment.put("slot", r -> refs(((Appointment) r).getSlot()));
@@ -69,7 +97,7 @@ public final class SearchParameters {
         patient.put("identifier", r -> identifiers(((Patient) r).getIdentifier()));
         DEFS.put("Patient", patient);
 
-        for (String type : List.of("Practitioner", "PractitionerRole", "Organization", "Specimen", "Subscription", "Schedule", "Device")) {
+        for (String type : List.of("Practitioner", "PractitionerRole", "Organization", "Specimen", "Subscription", "Schedule", "Device", "Location")) {
             DEFS.put(type, new LinkedHashMap<>());
         }
     }

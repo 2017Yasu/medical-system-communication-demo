@@ -4,11 +4,12 @@ import { resetDemo } from "../realtime/demoApi";
 import { startTrafficSync, trafficStore } from "../realtime/trafficStore";
 import { ScenarioRunner, type RunnerView } from "./runner";
 import { s1Main } from "./s1Main";
+import { s4Inpatient, s4Outpatient } from "./s4Prescription";
 import { VARIATIONS } from "./variations";
 import { loadScenarioState } from "./state";
 import type { Scenario } from "./types";
 
-export const SCENARIOS: Scenario[] = [s1Main, ...VARIATIONS];
+export const SCENARIOS: Scenario[] = [s1Main, ...VARIATIONS, s4Outpatient, s4Inpatient];
 
 interface ScenarioContextValue {
   runner: ScenarioRunner;
@@ -46,12 +47,17 @@ export function ScenarioProvider({ children, scenarioId: initialId = "s1-main" }
     return new ScenarioRunner({
       clients: {
         "ehr-doctor": new FhirClient("ehr-doctor"),
+        "ehr-doctor-y": new FhirClient("ehr-doctor-y"),
         "ehr-nurse": new FhirClient("ehr-nurse"),
+        "ehr-nurse-f": new FhirClient("ehr-nurse-f"),
         "lis-tech-a": new FhirClient("lis-tech-a"),
         "lis-tech-b": new FhirClient("lis-tech-b"),
+        pharmacy: new FhirClient("pharmacy"),
+        "pharmacy-ph-c": new FhirClient("pharmacy-ph-c"),
+        "pharmacy-ph-e": new FhirClient("pharmacy-ph-e"),
       },
       store: trafficStore,
-      loadState: () => loadScenarioState(monitor),
+      loadState: (scenario) => (scenario.loadState ?? loadScenarioState)(monitor),
       resetServer: async () => {
         await resetDemo();
         trafficStore.clear();

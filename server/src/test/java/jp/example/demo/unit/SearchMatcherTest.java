@@ -11,6 +11,9 @@ import jp.example.demo.fhir.search.SearchMatcher;
 import org.hl7.fhir.r4.model.Appointment;
 import org.hl7.fhir.r4.model.CodeableConcept;
 import org.hl7.fhir.r4.model.DiagnosticReport;
+import org.hl7.fhir.r4.model.Encounter;
+import org.hl7.fhir.r4.model.MedicationDispense;
+import org.hl7.fhir.r4.model.MedicationRequest;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Reference;
 import org.hl7.fhir.r4.model.ServiceRequest;
@@ -99,7 +102,7 @@ class SearchMatcherTest {
 
     @Test
     void unsupportedTypeOrParameterIsRejected() {
-        assertThatThrownBy(() -> CriteriaParser.parse("Encounter?status=x")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> CriteriaParser.parse("Condition?status=x")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> CriteriaParser.parse("Task?unknown=x")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> CriteriaParser.parse("Task?status")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> CriteriaParser.parse("")).isInstanceOf(IllegalArgumentException.class);
@@ -165,5 +168,54 @@ class SearchMatcherTest {
         assertThat(jp.example.demo.fhir.search.SearchParameters.supportsType("Schedule")).isTrue();
         assertThat(jp.example.demo.fhir.search.SearchParameters.supportsType("Device")).isTrue();
         assertThat(jp.example.demo.fhir.search.SearchParameters.names("Schedule")).isEmpty();
+    }
+
+    // ---- S4 処方調剤（specs/004 research R-01） ----
+
+    @Test
+    void medicationRequestSearchParameters() {
+        MedicationRequest mr = new MedicationRequest();
+        mr.setStatus(MedicationRequest.MedicationRequestStatus.ACTIVE);
+        mr.setRequester(new Reference("Practitioner/dr-x"));
+        mr.setSubject(new Reference("Patient/demo-taro"));
+        mr.setEncounter(new Reference("Encounter/adm-saburo"));
+        assertThat(matchesAny(mr, "MedicationRequest?requester=Practitioner/dr-x")).isTrue();
+        assertThat(matchesAny(mr, "MedicationRequest?requester=Practitioner/dr-y")).isFalse();
+        assertThat(matchesAny(mr, "MedicationRequest?subject=Patient/demo-taro")).isTrue();
+        assertThat(matchesAny(mr, "MedicationRequest?encounter=Encounter/adm-saburo")).isTrue();
+        assertThat(matchesAny(mr, "MedicationRequest?encounter=Encounter/a,Encounter/adm-saburo")).isTrue();
+        assertThat(matchesAny(mr, "MedicationRequest?status=active")).isTrue();
+        assertThat(matchesAny(mr, "MedicationRequest?status=completed")).isFalse();
+    }
+
+    @Test
+    void medicationDispenseSearchParameters() {
+        MedicationDispense md = new MedicationDispense();
+        md.addAuthorizingPrescription(new Reference("MedicationRequest/1"));
+        md.setSubject(new Reference("Patient/demo-taro"));
+        assertThat(matchesAny(md, "MedicationDispense?prescription=MedicationRequest/1")).isTrue();
+        assertThat(matchesAny(md, "MedicationDispense?prescription=MedicationRequest/2")).isFalse();
+        assertThat(matchesAny(md, "MedicationDispense?subject=Patient/demo-taro")).isTrue();
+    }
+
+    @Test
+    void taskEncounterMatchesOnlyTasksThatHaveOne() {
+        Task inpatient = task("Organization/pharmacy-dept", "Practitioner/dr-y", "requested");
+        inpatient.setEncounter(new Reference("Encounter/adm-saburo"));
+        Task outpatient = task("Organization/pharmacy-dept", "Practitioner/dr-x", "requested");
+        assertThat(matches(inpatient, "Task?encounter=Encounter/adm-saburo")).isTrue();
+        assertThat(matches(outpatient, "Task?encounter=Encounter/adm-saburo")).isFalse();
+    }
+
+    @Test
+    void encounterSearchParameters() {
+        Encounter e = new Encounter();
+        e.setStatus(Encounter.EncounterStatus.INPROGRESS);
+        e.setSubject(new Reference("Patient/demo-saburo"));
+        e.addLocation().setLocation(new Reference("Location/ward-surgery"));
+        assertThat(matchesAny(e, "Encounter?patient=Patient/demo-saburo")).isTrue();
+        assertThat(matchesAny(e, "Encounter?location=Location/ward-surgery&status=in-progress")).isTrue();
+        assertThat(matchesAny(e, "Encounter?location=Location/other")).isFalse();
+        assertThat(jp.example.demo.fhir.search.SearchParameters.supportsType("Location")).isTrue();
     }
 }

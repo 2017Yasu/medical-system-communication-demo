@@ -17,3 +17,13 @@ device-ct-1.json
 schedule-ct-1.json
 patient-demo-jiro.json
 patient-demo-sakurako.json
+organization-pharmacy-dept.json
+practitioner-ph-c.json
+practitionerrole-ph-c.json
+practitioner-ph-e.json
+practitionerrole-ph-e.json
+practitioner-ns-f.json
+practitionerrole-ns-f.json
+location-ward-surgery.json
+patient-demo-saburo.json
+encounter-adm-saburo.json

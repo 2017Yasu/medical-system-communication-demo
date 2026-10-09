@@ -32,10 +32,27 @@ export function Launcher() {
           <li><Link to="/ehr/ct?doctor=dr-x">電子カルテ CT 予約（医師 X）</Link></li>
           <li><Link to="/ehr/ct?doctor=dr-y">電子カルテ CT 予約（医師 Y）</Link></li>
           <li><Link to="/ris">放射線部門システム</Link></li>
+          <li><Link to="/ehr/rx?role=dr-x">電子カルテ 処方（医師 X）</Link></li>
+          <li><Link to="/ehr/rx?role=dr-y">電子カルテ 処方（医師 Y）</Link></li>
+          <li><Link to="/ehr/rx?role=ns-f">電子カルテ 病棟（看護師 F）</Link></li>
+          <li><Link to="/pharmacy">薬剤部門システム</Link></li>
           <li><Link to="/lis?tech=tech-a">検体検査システム（技師 A）</Link></li>
           <li><Link to="/lis?tech=tech-b">検体検査システム（技師 B）</Link></li>
           <li><Link to="/monitor">通信モニタ</Link></li>
           <li><Link to="/control">デモ制御パネル</Link></li>
+        </ul>
+      </section>
+      <section className="panel" aria-label="S4 処方調剤">
+        <h2>S4 処方調剤</h2>
+        <p className="muted">外来（患者にお渡し）と入院（病棟へ払出）を、ステージビューで 1 ステップずつ見せます。</p>
+        <ul>
+          <li><Link to="/stage?mode=presentation&scenario=s4-outpatient">講演モード（外来から）</Link></li>
+          <li><Link to="/stage?mode=self-study&scenario=s4-outpatient">自習モード（外来）</Link></li>
+          <li><Link to="/stage?mode=self-study&scenario=s4-inpatient">自習モード（入院）</Link></li>
+          <li><Link to="/ehr/rx?role=dr-x">電子カルテ 処方（医師 X）</Link></li>
+          <li><Link to="/ehr/rx?role=dr-y">電子カルテ 処方（医師 Y）</Link></li>
+          <li><Link to="/ehr/rx?role=ns-f">電子カルテ 病棟（看護師 F）</Link></li>
+          <li><Link to="/pharmacy">薬剤部門システム</Link></li>
         </ul>
       </section>
       <section className="panel" aria-label="S2 同時受付で開くウィンドウ">

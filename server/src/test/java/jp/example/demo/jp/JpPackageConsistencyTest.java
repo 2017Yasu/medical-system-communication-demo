@@ -104,7 +104,7 @@ class JpPackageConsistencyTest {
     @Test
     void masterProfilesExistInJpCore() throws IOException {
         JsonNode master = JSON.readTree(masterFile.toFile());
-        assertThat(master.path("profiles").size()).isGreaterThanOrEqualTo(8);
+        assertThat(master.path("profiles").size()).isGreaterThanOrEqualTo(12);
         master.path("profiles").forEach(p -> assertThat(profileUrls).contains(p.asText()));
     }
 
@@ -122,6 +122,16 @@ class JpPackageConsistencyTest {
         assertThat(verifiedPerSystem.getOrDefault(JLAC10, 0)).isEqualTo(8);
         assertThat(verifiedPerSystem).containsKey("http://jpfhir.jp/fhir/core/CodeSystem/JP_DocumentCodes_CS");
         assertThat(verifiedPerSystem).containsKey("http://jpfhir.jp/fhir/core/CodeSystem/JP_SimpleObservationCategory_CS");
+        // S4（処方調剤）：薬剤・用法・区分・単位のコードが空振りせずに確認される（SC-007）
+        assertThat(verifiedPerSystem.getOrDefault("http://medis.or.jp/CodeSystem/master-HOT9", 0)).isEqualTo(4);
+        for (String system : List.of(
+                "http://jami.jp/CodeSystem/MedicationUsage",
+                "http://jpfhir.jp/fhir/core/CodeSystem/JP_MedicationCategoryMERIT9_CS",
+                "http://jpfhir.jp/fhir/core/mhlw/CodeSystem/MedicationUnitMERIT9Code",
+                "http://jpfhir.jp/fhir/core/CodeSystem/route-codes",
+                "http://jami.jp/CodeSystem/MedicationMethodDetailUsage")) {
+            assertThat(verifiedPerSystem).containsKey(system);
+        }
     }
 
     private static void verify(JsonNode node, List<String> problems, Map<String, Integer> verified) {

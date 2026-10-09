@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { applyHighlight, controlsOf } from "../../src/guide/useGuide";
+import { applyHighlight, controlsOf, guideInstruction } from "../../src/guide/useGuide";
 import { s1Main } from "../../src/scenario/s1Main";
+import { s4Inpatient, s4Outpatient } from "../../src/scenario/s4Prescription";
 
 const step = (no: number) => s1Main.steps[no - 1];
 
@@ -65,3 +66,41 @@ describe("guide highlighting", () => {
     }
   });
 });
+
+describe("guide instruction (S4, specs/004 contracts/ui-screens.md)", () => {
+  it("keeps the S1 wording", () => {
+    expect(guideInstruction(step(1))).toBe("電子カルテ（医師 X）の、枠が点滅している部分を操作してください。");
+    expect(guideInstruction(step(3))).toBe("電子カルテ（看護師 D）の、枠が点滅している部分を操作してください。");
+    expect(guideInstruction(step(4))).toBe("検体検査システムの、枠が点滅している部分を操作してください。");
+    expect(guideInstruction(step(2))).toBe("検体検査システムに、通知が届くのを待っています。何も操作しなくても、画面が自動で更新されます。");
+  });
+
+  it("names the pharmacy system with the pharmacist and the electronic record with the role", () => {
+    expect(guideInstruction(s4Outpatient.steps[2], "ph-c")).toBe("薬剤部門システム（薬剤師 C）の、枠が点滅している部分を操作してください。");
+    expect(guideInstruction(s4Outpatient.steps[0])).toBe("電子カルテ（医師 X）の、枠が点滅している部分を操作してください。");
+    expect(guideInstruction(s4Inpatient.steps[0])).toBe("電子カルテ（医師 Y）の、枠が点滅している部分を操作してください。");
+    expect(guideInstruction(s4Inpatient.steps[5])).toContain("電子カルテ");
+  });
+
+  it("asks to switch the pharmacist when the selected one differs from the guided one", () => {
+    expect(guideInstruction(s4Inpatient.steps[3], "ph-c")).toBe(
+      "薬剤部門システム（薬剤師 E）の、枠が点滅している部分を操作してください。薬剤師 E に切り替えてください。",
+    );
+    expect(guideInstruction(s4Inpatient.steps[3], "ph-e")).toBe("薬剤部門システム（薬剤師 E）の、枠が点滅している部分を操作してください。");
+  });
+
+  it("highlights the pharmacist switch only while that pharmacist is not selected", () => {
+    document.body.innerHTML = `
+      <section data-guide-region="pharmacy">
+        <button data-guide="pharmacist-ph-c" disabled>薬剤師 C</button>
+        <button data-guide="pharmacist-ph-e">薬剤師 E</button>
+        <button data-guide="rx-audit-1">監査を開始</button>
+      </section>`;
+    applyHighlight(document, s4Inpatient.steps[3]);
+    expect(active()).toEqual(["pharmacist-ph-e", "rx-audit-1"]);
+    (document.querySelector('[data-guide="pharmacist-ph-e"]') as HTMLButtonElement).disabled = true;
+    applyHighlight(document, s4Inpatient.steps[3]);
+    expect(active()).toEqual(["rx-audit-1"]);
+  });
+});
+

@@ -1,5 +1,5 @@
 {
-  "_comment": "FHIR マスタ：プロファイル、検査項目（JLAC10・単位・基準値・既定値）、固定の coding。JLAC10 は JP Terminology 2.2609.0 で確認済み（specs/001-lab-order-workflow/research.md R-15）。サーバーのテスト JpPackageConsistencyTest が JP パッケージとの整合を確認する。放射線（S3）の検査内容は JJ1017 が JP Terminology 2.2609.0 に含まれないためデモ用の独自コード（specs/003 D-39）。モダリティ DCM#CT は JP_RadiologyModality_VS に含まれる。",
+  "_comment": "FHIR マスタ：プロファイル、検査項目（JLAC10・単位・基準値・既定値）、固定の coding。JLAC10 は JP Terminology 2.2609.0 で確認済み（specs/001-lab-order-workflow/research.md R-15）。サーバーのテスト JpPackageConsistencyTest が JP パッケージとの整合を確認する。放射線（S3）の検査内容は JJ1017 が JP Terminology 2.2609.0 に含まれないためデモ用の独自コード（specs/003 D-39）。S4（処方調剤）の薬剤は HOT9、用法は JAMI 用法コード、区分は MERIT9 区分、単位は MERIT9 単位で、いずれも JP Terminology 2.2609.0 で確認済み（specs/004 research R-03）。モダリティ DCM#CT は JP_RadiologyModality_VS に含まれる。",
   "profiles": {
     "Patient": "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Patient",
     "Practitioner": "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Practitioner",
@@ -8,7 +8,11 @@
     "ServiceRequest": "http://jpfhir.jp/fhir/core/StructureDefinition/JP_ServiceRequest_Common",
     "Specimen": "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Specimen_Common",
     "Observation": "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Observation_LabResult",
-    "DiagnosticReport": "http://jpfhir.jp/fhir/core/StructureDefinition/JP_DiagnosticReport_LabResult"
+    "DiagnosticReport": "http://jpfhir.jp/fhir/core/StructureDefinition/JP_DiagnosticReport_LabResult",
+    "MedicationRequest": "http://jpfhir.jp/fhir/core/StructureDefinition/JP_MedicationRequest",
+    "MedicationDispense": "http://jpfhir.jp/fhir/core/StructureDefinition/JP_MedicationDispense",
+    "Encounter": "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Encounter",
+    "Location": "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Location"
   },
   "systems": {
     "jlac10": "http://medis.or.jp/CodeSystem/master-JLAC10-17digits",
@@ -18,7 +22,18 @@
     "businessStatus": "https://demo.example.jp/fhir/CodeSystem/lab-business-status",
     "orderNumber": "https://demo.example.jp/fhir/sid/order-number",
     "radiologyProcedure": "https://demo.example.jp/fhir/CodeSystem/radiology-procedure",
-    "radBusinessStatus": "https://demo.example.jp/fhir/CodeSystem/rad-business-status"
+    "radBusinessStatus": "https://demo.example.jp/fhir/CodeSystem/rad-business-status",
+    "hot9": "http://medis.or.jp/CodeSystem/master-HOT9",
+    "jamiUsage": "http://jami.jp/CodeSystem/MedicationUsage",
+    "jamiMethod": "http://jami.jp/CodeSystem/MedicationMethodDetailUsage",
+    "routeCodes": "http://jpfhir.jp/fhir/core/CodeSystem/route-codes",
+    "merit9Category": "http://jpfhir.jp/fhir/core/CodeSystem/JP_MedicationCategoryMERIT9_CS",
+    "merit9Unit": "http://jpfhir.jp/fhir/core/mhlw/CodeSystem/MedicationUnitMERIT9Code",
+    "strengthType": "http://jpfhir.jp/fhir/core/mhlw/CodeSystem/MedicationIngredientStrengthStrengthType",
+    "dispensePerformer": "http://terminology.hl7.org/CodeSystem/medicationdispense-performer-function",
+    "pharmBusinessStatus": "https://demo.example.jp/fhir/CodeSystem/pharm-business-status",
+    "rpNumber": "http://jpfhir.jp/fhir/core/mhlw/IdSystem/Medication-RPGroupNumber",
+    "orderInRp": "http://jpfhir.jp/fhir/core/mhlw/IdSystem/MedicationAdministrationIndex"
   },
   "labSets": [
     { "code": "CBC", "display": "血算", "items": ["WBC", "RBC", "Hb", "Ht", "PLT"] },
@@ -29,6 +44,16 @@
     { "code": "CT-CHEST", "display": "胸部 CT（単純）" },
     { "code": "CT-ABD-C", "display": "腹部 CT（造影）" }
   ],
+  "medications": [
+    {"key": "amlodipine", "display": "ノルバスク錠５ｍｇ", "coding": {"system": "http://medis.or.jp/CodeSystem/master-HOT9", "code": "103299401", "display": "ノルバスク錠５ｍｇ"}, "doseValue": 1, "doseUnit": {"system": "http://jpfhir.jp/fhir/core/mhlw/CodeSystem/MedicationUnitMERIT9Code", "code": "TAB", "display": "錠"}, "usage": {"system": "http://jami.jp/CodeSystem/MedicationUsage", "code": "1011000400000000", "display": "内服 １日１回 朝食後"}, "usageText": "内服・経口・１日１回朝食後", "timesPerDay": 1, "defaultDays": 14},
+    {"key": "loxoprofen", "display": "ロキソニン錠６０ｍｇ", "coding": {"system": "http://medis.or.jp/CodeSystem/master-HOT9", "code": "100988001", "display": "ロキソニン錠６０ｍｇ"}, "doseValue": 1, "doseUnit": {"system": "http://jpfhir.jp/fhir/core/mhlw/CodeSystem/MedicationUnitMERIT9Code", "code": "TAB", "display": "錠"}, "usage": {"system": "http://jami.jp/CodeSystem/MedicationUsage", "code": "1013044400000000", "display": "内服 １日３回 朝昼夕食後"}, "usageText": "内服・経口・１日３回朝昼夕食後", "timesPerDay": 3, "defaultDays": 3},
+    {"key": "rebamipide", "display": "ムコスタ錠１００ｍｇ", "coding": {"system": "http://medis.or.jp/CodeSystem/master-HOT9", "code": "104528401", "display": "ムコスタ錠１００ｍｇ"}, "doseValue": 1, "doseUnit": {"system": "http://jpfhir.jp/fhir/core/mhlw/CodeSystem/MedicationUnitMERIT9Code", "code": "TAB", "display": "錠"}, "usage": {"system": "http://jami.jp/CodeSystem/MedicationUsage", "code": "1013044400000000", "display": "内服 １日３回 朝昼夕食後"}, "usageText": "内服・経口・１日３回朝昼夕食後", "timesPerDay": 3, "defaultDays": 3},
+    {"key": "magnesium-oxide", "display": "マグミット錠３３０ｍｇ", "coding": {"system": "http://medis.or.jp/CodeSystem/master-HOT9", "code": "114778001", "display": "マグミット錠３３０ｍｇ"}, "doseValue": 1, "doseUnit": {"system": "http://jpfhir.jp/fhir/core/mhlw/CodeSystem/MedicationUnitMERIT9Code", "code": "TAB", "display": "錠"}, "usage": {"system": "http://jami.jp/CodeSystem/MedicationUsage", "code": "1012040400000000", "display": "内服 １日２回 朝夕食後"}, "usageText": "内服・経口・１日２回朝夕食後", "timesPerDay": 2, "defaultDays": 7}
+  ],
+  "prescriptionDefaults": {
+    "dr-x": { "patientId": "demo-taro", "medication": "amlodipine" },
+    "dr-y": { "patientId": "demo-saburo", "medication": "loxoprofen" }
+  },
   "labItems": [
     { "key": "WBC", "display": "白血球数", "coding": { "system": "http://medis.or.jp/CodeSystem/master-JLAC10-17digits", "code": "2A990000001930952" }, "unit": "10*3/uL", "unitDisplay": "10³/μL", "low": 3.3, "high": 8.6, "defaultValue": 9.8 },
     { "key": "RBC", "display": "赤血球数", "coding": { "system": "http://medis.or.jp/CodeSystem/master-JLAC10-17digits", "code": "2A990000001930951" }, "unit": "10*6/uL", "unitDisplay": "10⁶/μL", "low": 4.35, "high": 5.55, "defaultValue": 4.8 },
@@ -51,7 +76,16 @@
     "interpretationLow": { "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation", "code": "L", "display": "Low" },
     "interpretationNormal": { "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation", "code": "N", "display": "Normal" },
     "imagingCategory": { "system": "http://snomed.info/sct", "code": "363679005", "display": "Imaging" },
-    "modalityCT": { "system": "http://dicom.nema.org/resources/ontology/DCM", "code": "CT", "display": "Computed Tomography" }
+    "modalityCT": { "system": "http://dicom.nema.org/resources/ontology/DCM", "code": "CT", "display": "Computed Tomography" },
+    "categoryOutpatient": {"system": "http://jpfhir.jp/fhir/core/CodeSystem/JP_MedicationCategoryMERIT9_CS", "code": "OHP", "display": "外来処方"},
+    "categoryInHospital": {"system": "http://jpfhir.jp/fhir/core/CodeSystem/JP_MedicationCategoryMERIT9_CS", "code": "OHI", "display": "院内処方"},
+    "categoryInpatient": {"system": "http://jpfhir.jp/fhir/core/CodeSystem/JP_MedicationCategoryMERIT9_CS", "code": "IHP", "display": "入院処方"},
+    "categoryTemporary": {"system": "http://jpfhir.jp/fhir/core/CodeSystem/JP_MedicationCategoryMERIT9_CS", "code": "XTR", "display": "臨時処方"},
+    "routeOral": {"system": "http://jpfhir.jp/fhir/core/CodeSystem/route-codes", "code": "PO", "display": "口"},
+    "methodOral": {"system": "http://jami.jp/CodeSystem/MedicationMethodDetailUsage", "code": "10", "display": "経口"},
+    "strengthProduct": {"system": "http://jpfhir.jp/fhir/core/mhlw/CodeSystem/MedicationIngredientStrengthStrengthType", "code": "1", "display": "製剤量"},
+    "performerPackager": {"system": "http://terminology.hl7.org/CodeSystem/medicationdispense-performer-function", "code": "packager", "display": "Packager"},
+    "performerChecker": {"system": "http://terminology.hl7.org/CodeSystem/medicationdispense-performer-function", "code": "checker", "display": "Checker"}
   },
   "businessStatuses": [
     { "code": "not-collected", "display": "未採取" },
@@ -64,5 +98,9 @@
   ],
   "radBusinessStatuses": [
     { "code": "booked", "display": "予約済み" }
+  ],
+  "pharmBusinessStatuses": [
+    { "code": "dispensing", "display": "調剤中" },
+    { "code": "auditing", "display": "監査中" }
   ]
 }

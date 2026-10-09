@@ -1,0 +1,21 @@
+{
+  "resourceType": "Practitioner",
+  "id": "ns-f",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Practitioner"
+    ]
+  },
+  "identifier": [
+    {
+      "system": "https://demo.example.jp/fhir/sid/staff-number",
+      "value": "ns-f"
+    }
+  ],
+  "name": [
+    {
+      "use": "official",
+      "text": "看護師 F"
+    }
+  ]
+}

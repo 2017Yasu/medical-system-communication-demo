@@ -1,0 +1,27 @@
+{
+  "resourceType": "Patient",
+  "id": "demo-saburo",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Patient"
+    ]
+  },
+  "identifier": [
+    {
+      "system": "https://demo.example.jp/fhir/sid/patient-number",
+      "value": "00000005"
+    }
+  ],
+  "name": [
+    {
+      "use": "official",
+      "text": "デモ 三郎",
+      "family": "デモ",
+      "given": [
+        "三郎"
+      ]
+    }
+  ],
+  "gender": "male",
+  "birthDate": "1958-08-15"
+}

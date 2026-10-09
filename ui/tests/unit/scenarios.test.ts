@@ -11,7 +11,8 @@ const source = walk("src").filter((f) => f.endsWith(".tsx")).map((f) => readFile
 function existsInScreens(control: string): boolean {
   if (source.includes(`data-guide="${control}"`)) return true;
   const prefix = control.replace(/-(\d+|CBC|BIO|AST|ALT|Cre)$/, "-");
-  return source.includes(`data-guide={\`${prefix}$`);
+  // 薬剤部門システムのように、操作の種類で data-guide を切り替える場合は、`prefix${id}` の形で式の中にある
+  return source.includes(`data-guide={\`${prefix}$`) || source.includes(`\`${prefix}$` + "{");
 }
 
 describe.each(SCENARIOS)("scenario $id", (scenario) => {
@@ -53,12 +54,57 @@ describe.each(SCENARIOS)("scenario $id", (scenario) => {
 
   it("starts from a state where the first step is not yet done", () => {
     expect(scenario.steps[0].expected.task?.status).toBe("requested");
-    expect(scenario.steps[0].actor).toBe("ehr-doctor");
+    expect(["ehr-doctor", "ehr-doctor-y"]).toContain(scenario.steps[0].actor);
   });
 });
 
 describe("scenario list", () => {
-  it("offers the main flow and the four variations (FR-030)", () => {
-    expect(SCENARIOS.map((s) => s.id)).toEqual(["s1-main", "s1-cancel", "s1-reject", "s1-rerun", "s1-partial"]);
+  it("offers the main flow, the four variations (FR-030) and the two S4 scenarios", () => {
+    expect(SCENARIOS.map((s) => s.id)).toEqual(["s1-main", "s1-cancel", "s1-reject", "s1-rerun", "s1-partial", "s4-outpatient", "s4-inpatient"]);
+  });
+});
+
+// S4 処方調剤（specs/004 data-model.md §4）
+describe("S4 scenarios", () => {
+  const outpatient = SCENARIOS.find((s) => s.id === "s4-outpatient")!;
+  const inpatient = SCENARIOS.find((s) => s.id === "s4-inpatient")!;
+
+  it("use the pharmacy stage, six steps and their own state loader", () => {
+    for (const s of [outpatient, inpatient]) {
+      expect(s.stage).toBe("pharmacy");
+      expect(s.steps).toHaveLength(6);
+      expect(s.loadState).toBeTypeOf("function");
+    }
+  });
+
+  it("only the inpatient scenario can fast-forward to step 4", () => {
+    expect(outpatient.fastForward).toBeUndefined();
+    expect(inpatient.fastForward).toMatchObject({ to: 4 });
+    expect(inpatient.fastForward?.label).toContain("ステップ 4");
+  });
+
+  it("steps 2 to 4 are the same in both scenarios (same states and traffic)", () => {
+    for (const i of [1, 2, 3]) {
+      expect(inpatient.steps[i].title).toBe(outpatient.steps[i].title);
+      expect(inpatient.steps[i].expected).toEqual(outpatient.steps[i].expected);
+    }
+  });
+
+  it("differ in the last operation: the prescription is completed only for the outpatient", () => {
+    expect(outpatient.steps[4].expected.medicationRequest).toBe("completed");
+    expect(inpatient.steps[4].expected.medicationRequest).toBe("active");
+    for (const s of [outpatient, inpatient]) {
+      expect(s.steps[4].expected.task?.status).toBe("completed");
+      expect(s.steps[4].expected.medicationDispense).toBe("completed");
+    }
+  });
+
+  it("have the guided pharmacist switch and explanations that cover what the talk has to teach (FR-030)", () => {
+    for (const s of [outpatient, inpatient]) {
+      expect(controlsOf(s.steps[3])).toContain("pharmacist-ph-e");
+      const text = s.steps.map((x) => x.explanation.business + x.explanation.fhir).join("");
+      for (const word of ["ServiceRequest", "MedicationRequest", "Task", "作業", "依頼"]) expect(text, `${s.id}: ${word}`).toContain(word);
+    }
+    expect(inpatient.steps[4].explanation.fhir).toContain("active");
   });
 });

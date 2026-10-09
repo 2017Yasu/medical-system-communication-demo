@@ -18,7 +18,8 @@ export interface RunnerDeps {
     maxSeq: () => number;
     subscribe: (listener: () => void) => () => void;
   };
-  loadState: () => Promise<ScenarioState>;
+  /** 現在のデータの状態（シナリオごとに取得の仕方が違う）。 */
+  loadState: (scenario: Scenario) => Promise<ScenarioState>;
   /** サーバーを初期化し、通信記録の保持も空にする。 */
   resetServer: () => Promise<void>;
   /** 初期化の後、各画面の通知の再登録が落ち着くまで待つ。 */
@@ -94,7 +95,7 @@ export class ScenarioRunner {
   async refresh(): Promise<void> {
     const scenario = this.view.scenario;
     if (!scenario) return;
-    const state = await this.deps.loadState();
+    const state = await this.deps.loadState(scenario);
     const records = this.deps.store.getSnapshot();
     const evaluated = evaluateProgress(scenario, state, records, this.startSeq).completed;
     let completed = this.view.completed;
@@ -113,6 +114,26 @@ export class ScenarioRunner {
     this.update({ ...this.view, busy: true, waiting: false, error: null });
     try {
       await this.advance();
+    } finally {
+      this.update({ ...this.view, busy: false });
+    }
+  }
+
+  /**
+   * 完了したステップが n になるまで、「次へ」と同じ処理（そのステップの自動実行 → 完了の判定を待つ）を続けて行う（D-52）。
+   * 初期化はしない。途中で完了しない（通知を待つ）・失敗したときは、そこで止めて「次へ」と同じ表示にする。
+   */
+  async runTo(n: number): Promise<void> {
+    const scenario = this.view.scenario;
+    if (!scenario || this.view.busy) return;
+    const target = Math.min(n, scenario.steps.length);
+    if (this.view.completed >= target) return;
+    this.update({ ...this.view, busy: true, waiting: false, error: null });
+    try {
+      while (this.view.completed < target) {
+        const ok = await this.advance();
+        if (!ok) break;
+      }
     } finally {
       this.update({ ...this.view, busy: false });
     }
@@ -172,7 +193,7 @@ export class ScenarioRunner {
     const deadline = Date.now() + (this.deps.completionTimeoutMs ?? 5000);
     const poll = this.deps.pollMs ?? 250;
     for (;;) {
-      const state = await this.deps.loadState();
+      const state = await this.deps.loadState(scenario);
       const evaluated = evaluateProgress(scenario, state, this.deps.store.getSnapshot(), this.startSeq).completed;
       if (evaluated > index) {
         this.holdSeq = this.deps.store.maxSeq();

@@ -26,7 +26,8 @@ import org.hl7.fhir.r4.model.Task;
 public final class ResourceWriter {
     /** API から書き込める種別（data-model.md / contracts/fhir-api.md）。それ以外は読み取り専用。 */
     public static final Set<String> WRITABLE =
-            Set.of("ServiceRequest", "Task", "Specimen", "Observation", "DiagnosticReport", "Subscription", "Slot", "Appointment");
+            Set.of("ServiceRequest", "Task", "Specimen", "Observation", "DiagnosticReport", "Subscription", "Slot", "Appointment",
+                    "MedicationRequest", "MedicationDispense");
 
     public record Result(StoredVersion version, boolean created) {}
 

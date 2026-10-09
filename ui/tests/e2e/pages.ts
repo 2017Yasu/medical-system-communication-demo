@@ -45,3 +45,18 @@ export async function holdOn(page: Page): Promise<void> {
 export async function confirmOn(page: Page): Promise<void> {
   await page.getByTestId("booking-confirm").click();
 }
+
+/** 薬剤部門システム（specs/004）：操作する薬剤師を切り替える。選択中の薬剤師のボタンは押せない。 */
+export async function switchPharmacist(page: Page, who: "薬剤師 C" | "薬剤師 E"): Promise<void> {
+  await page.getByRole("button", { name: who, exact: true }).click();
+}
+
+/** 薬剤部門システムの行の操作（「受付・調剤開始」「監査を開始」「監査を終えてお渡し」「監査を終えて払出」）。 */
+export function pharmacyButton(page: Page, id: string, name: string): Locator {
+  return page.getByTestId(`rx-pharmacy-row-${id}`).getByRole("button", { name, exact: true });
+}
+
+/** 電子カルテ 処方：既定の患者・薬剤のまま「処方する」を押す。 */
+export async function prescribeOn(page: Page): Promise<void> {
+  await page.getByTestId("rx-form").getByRole("button", { name: "処方する" }).click();
+}

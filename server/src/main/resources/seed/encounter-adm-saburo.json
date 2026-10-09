@@ -1,0 +1,37 @@
+{
+  "resourceType": "Encounter",
+  "id": "adm-saburo",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Encounter"
+    ]
+  },
+  "status": "in-progress",
+  "class": {
+    "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+    "code": "IMP"
+  },
+  "subject": {
+    "reference": "Patient/demo-saburo",
+    "display": "デモ 三郎"
+  },
+  "participant": [
+    {
+      "individual": {
+        "reference": "Practitioner/dr-y"
+      }
+    }
+  ],
+  "location": [
+    {
+      "location": {
+        "reference": "Location/ward-surgery",
+        "display": "外科病棟"
+      },
+      "status": "active"
+    }
+  ],
+  "serviceProvider": {
+    "reference": "Organization/hospital"
+  }
+}
