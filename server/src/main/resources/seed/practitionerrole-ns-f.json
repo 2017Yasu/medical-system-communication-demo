@@ -1,0 +1,34 @@
+{
+  "resourceType": "PractitionerRole",
+  "id": "ns-f",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_PractitionerRole"
+    ]
+  },
+  "active": true,
+  "practitioner": {
+    "reference": "Practitioner/ns-f"
+  },
+  "organization": {
+    "reference": "Organization/hospital"
+  },
+  "code": [
+    {
+      "coding": [
+        {
+          "system": "https://demo.example.jp/fhir/CodeSystem/staff-role",
+          "code": "nurse",
+          "display": "看護師"
+        }
+      ],
+      "text": "看護師"
+    }
+  ],
+  "location": [
+    {
+      "reference": "Location/ward-surgery",
+      "display": "外科病棟"
+    }
+  ]
+}

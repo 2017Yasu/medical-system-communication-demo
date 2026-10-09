@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptConflictError, toDisplayError, slotHoldConflictError, slotHoldExpiredError } from "../../src/fhir/errors";
+import { acceptConflictError, dispenseConflictError, dispenserUnknownError, toDisplayError, slotHoldConflictError, slotHoldExpiredError } from "../../src/fhir/errors";
 
 function outcome(diagnostics: string) {
   return { resourceType: "OperationOutcome", issue: [{ severity: "error", code: "processing", diagnostics }] };
@@ -104,5 +104,24 @@ describe("S3 slot errors (specs/003 R-09)", () => {
     expect(e.message).toBe("仮押さえの期限が切れました。枠を選び直してください");
     expect(e.httpLabel).toBe("412 Precondition Failed");
     expect(e.kind).toBe("conflict");
+  });
+});
+
+describe("S4 dispensing errors", () => {
+  it("412 on hand-over / ward dispatch says the whole transaction was cancelled", () => {
+    const e = dispenseConflictError("お渡し");
+    expect(e.kind).toBe("conflict");
+    expect(e.message).toContain("他の利用者が先に更新しました。最新の状態を表示します");
+    expect(e.message).toContain("お渡しは取り消されました。調剤の記録は登録されていません");
+    expect(e.httpLabel).toBe("412 Precondition Failed");
+    expect(dispenseConflictError("払出").message).toContain("払出は取り消されました");
+  });
+
+  it("422 names the operation", () => {
+    expect(toDisplayError({ status: 422 }, "お渡し").message).toBe("この状態からはお渡しできません");
+  });
+
+  it("explains that the dispensing pharmacist could not be read from the history", () => {
+    expect(dispenserUnknownError().text).toBe("調剤した薬剤師が分かりません（作業の版の履歴に調剤中の記録がありません）");
   });
 });

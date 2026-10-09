@@ -16,7 +16,7 @@ export interface Guide {
   restart: () => void;
 }
 
-const REGION_NAME = { ehr: "電子カルテ", lis: "検体検査システム" } as const;
+const REGION_NAME = { ehr: "電子カルテ", lis: "検体検査システム", pharmacy: "薬剤部門システム" } as const;
 
 export function controlsOf(step: ScenarioStep | null): string[] {
   return step?.target.control?.split(",").filter(Boolean) ?? [];

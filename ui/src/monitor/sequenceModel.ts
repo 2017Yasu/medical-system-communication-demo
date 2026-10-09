@@ -2,7 +2,7 @@
 import { statusLabel } from "../fhir/labels";
 import type { TrafficRecord } from "../realtime/types";
 
-export type Lane = "ehr" | "server" | "lis" | "ris" | "monitor" | "other";
+export type Lane = "ehr" | "server" | "lis" | "ris" | "pharmacy" | "monitor" | "other";
 
 export interface SequenceItem {
   seq: number;
@@ -30,9 +30,13 @@ const NAMES: Record<string, string> = {
   "ehr-doctor": "医師 X",
   "ehr-doctor-y": "医師 Y",
   "ehr-nurse": "看護師 D",
+  "ehr-nurse-f": "看護師 F",
   "lis-tech-a": "技師 A",
   "lis-tech-b": "技師 B",
   ris: "放射線部門システム",
+  pharmacy: "薬剤部門システム",
+  "pharmacy-ph-c": "薬剤師 C",
+  "pharmacy-ph-e": "薬剤師 E",
   "server-slot-expiry": "FHIR サーバー（仮押さえの期限切れ）",
   monitor: "通信モニタ",
   unknown: "不明",
@@ -42,6 +46,7 @@ export function laneOf(client: string): Lane {
   if (client.startsWith("ehr-")) return "ehr";
   if (client.startsWith("lis-")) return "lis";
   if (client === "ris") return "ris";
+  if (client === "pharmacy" || client.startsWith("pharmacy-")) return "pharmacy";
   if (client.startsWith("server-")) return "server";
   if (client === "monitor") return "monitor";
   return "other";
@@ -185,7 +190,7 @@ export function resourceRefsIn(records: TrafficRecord[]): string[] {
   return [...refs].sort();
 }
 
-/** シーケンス図に出す列。電子カルテ・FHIR サーバーは常に、検体検査システム・放射線部門システムは記録があるときだけ（どちらも無ければ検体検査システム）。 */
+/** シーケンス図に出す列。電子カルテ・FHIR サーバーは常に、検体検査システム・放射線部門システム・薬剤部門システムは記録があるときだけ（どれも無ければ検体検査システム）。 */
 export function lanesFor(items: SequenceItem[]): Lane[] {
   const used = new Set<Lane>();
   for (const i of items) {
@@ -193,7 +198,8 @@ export function lanesFor(items: SequenceItem[]): Lane[] {
     used.add(i.to);
   }
   const lanes: Lane[] = ["ehr", "server"];
-  if (used.has("lis") || !used.has("ris")) lanes.push("lis");
+  if (used.has("lis") || (!used.has("ris") && !used.has("pharmacy"))) lanes.push("lis");
   if (used.has("ris")) lanes.push("ris");
+  if (used.has("pharmacy")) lanes.push("pharmacy");
   return lanes;
 }

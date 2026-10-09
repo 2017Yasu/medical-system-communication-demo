@@ -1,6 +1,6 @@
 {
   "resourceType": "Practitioner",
-  "id": "dr-y",
+  "id": "ph-e",
   "meta": {
     "profile": [
       "http://jpfhir.jp/fhir/core/StructureDefinition/JP_Practitioner"
@@ -9,13 +9,13 @@
   "identifier": [
     {
       "system": "https://demo.example.jp/fhir/sid/staff-number",
-      "value": "dr-y"
+      "value": "ph-e"
     }
   ],
   "name": [
     {
       "use": "official",
-      "text": "医師 Y"
+      "text": "薬剤師 E"
     }
   ]
 }

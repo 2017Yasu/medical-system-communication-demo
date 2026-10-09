@@ -1,7 +1,7 @@
 import { useScenario } from "../scenario/ScenarioProvider";
 import { useGuide } from "./useGuide";
 
-const REGION = { ehr: "電子カルテ", lis: "検体検査システム" } as const;
+const REGION = { ehr: "電子カルテ", lis: "検体検査システム", pharmacy: "薬剤部門システム" } as const;
 
 /** 自習モードのガイド：次に操作する画面とボタンの案内、各ステップの解説、「最初から」（FR-029）。 */
 export function GuideOverlay() {

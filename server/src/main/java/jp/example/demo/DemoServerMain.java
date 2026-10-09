@@ -15,6 +15,10 @@ import jp.example.demo.fhir.ResourceWriter;
 import jp.example.demo.fhir.provider.AppointmentProvider;
 import jp.example.demo.fhir.provider.DeviceProvider;
 import jp.example.demo.fhir.provider.DiagnosticReportProvider;
+import jp.example.demo.fhir.provider.EncounterProvider;
+import jp.example.demo.fhir.provider.LocationProvider;
+import jp.example.demo.fhir.provider.MedicationDispenseProvider;
+import jp.example.demo.fhir.provider.MedicationRequestProvider;
 import jp.example.demo.fhir.provider.ObservationProvider;
 import jp.example.demo.fhir.provider.OrganizationProvider;
 import jp.example.demo.fhir.provider.PatientProvider;
@@ -90,7 +94,11 @@ public final class DemoServerMain {
                 new SlotProvider(repo, writer),
                 new AppointmentProvider(repo, writer),
                 new ScheduleProvider(repo, writer),
-                new DeviceProvider(repo, writer));
+                new DeviceProvider(repo, writer),
+                new MedicationRequestProvider(repo, writer),
+                new MedicationDispenseProvider(repo, writer),
+                new EncounterProvider(repo, writer),
+                new LocationProvider(repo, writer));
         List<Object> plain = List.of(new TransactionProvider(new TransactionProcessor(repo, writer)));
 
         Server server = new Server(port);

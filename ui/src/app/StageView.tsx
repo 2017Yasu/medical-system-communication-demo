@@ -27,7 +27,7 @@ function Stage() {
   // 自習モード：案内する次のステップが指定する電子カルテの役割（医師／看護師）へ切り替える
   const nextRole = view.scenario?.steps[view.completed]?.target.role;
   useEffect(() => {
-    if (mode === "self-study" && nextRole) setRole(nextRole);
+    if (mode === "self-study" && (nextRole === "doctor" || nextRole === "nurse")) setRole(nextRole);
   }, [mode, nextRole]);
 
   return (

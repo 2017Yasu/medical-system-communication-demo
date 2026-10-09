@@ -37,8 +37,8 @@ US3（講演モード）は US1・US2 の画面と操作を使ってシナリオ
 
 **Purpose**: 変更前の状態が緑であることを確かめ、S4 で画面に出る既存の誤りを直す
 
-- [ ] T001 変更前の基準を記録する：`server/` で `mvn verify`、`ui/` で `npm ci && npm test && npm run typecheck` を実行し、すべて成功することを確認する。`.cache/fhir-packages/` に JP のパッケージがあることを確認する（無ければ `scripts/fetch-jp-packages.sh`）。失敗があれば本機能の作業前に原因を報告する（`server/`、`ui/`）
-- [ ] T002 `server/src/main/resources/seed/practitioner-dr-y.json` の `name[0].text` を「医師 X」から「医師 Y」に直す（S3 の初期データの誤り。research.md R-02）。`server/` で `mvn verify -Dit.test=S3ScenarioIT` が通ることを確認する
+- [X] T001 変更前の基準を記録する：`server/` で `mvn verify`、`ui/` で `npm ci && npm test && npm run typecheck` を実行し、すべて成功することを確認する。`.cache/fhir-packages/` に JP のパッケージがあることを確認する（無ければ `scripts/fetch-jp-packages.sh`）。失敗があれば本機能の作業前に原因を報告する（`server/`、`ui/`）
+- [X] T002 `server/src/main/resources/seed/practitioner-dr-y.json` の `name[0].text` を「医師 X」から「医師 Y」に直す（S3 の初期データの誤り。research.md R-02）。`server/` で `mvn verify -Dit.test=S3ScenarioIT` が通ることを確認する
 
 ---
 
@@ -51,15 +51,15 @@ US3（講演モード）は US1・US2 の画面と操作を使ってシナリオ
 
 ### サーバー：検索パラメータ（research.md R-01、contracts/fhir-api.md）
 
-- [ ] T003 [P] `server/src/test/java/jp/example/demo/unit/SearchMatcherTest.java` にテストを追加する：MedicationRequest の `requester`（`Practitioner/dr-x`）・`subject`（`Patient/demo-taro`）・`encounter`（`Encounter/adm-saburo`）・`status`（`active`）、
+- [X] T003 [P] `server/src/test/java/jp/example/demo/unit/SearchMatcherTest.java` にテストを追加する：MedicationRequest の `requester`（`Practitioner/dr-x`）・`subject`（`Patient/demo-taro`）・`encounter`（`Encounter/adm-saburo`）・`status`（`active`）、
   MedicationDispense の `prescription`（`authorizingPrescription` の `MedicationRequest/1`）・`subject`、Task の `encounter`（`Encounter/adm-saburo`。`encounter` の無い Task には一致しない）、
   Encounter の `patient`（`subject`）・`location`（`location[].location`。`Location/ward-surgery`）・`status`（`in-progress`）。カンマ区切りが OR になること（例：`encounter=Encounter/a,Encounter/adm-saburo`）。
   Location はパラメータ無しの全件検索に対応すること（`SearchParameters.supportsType("Location")`）
-- [ ] T004 `server/src/main/java/jp/example/demo/fhir/search/SearchParameters.java` に T003 のパラメータを実装する（MedicationRequest・MedicationDispense・Encounter の定義を追加し、Task に `encounter` を加え、Location をパラメータ無しの種別に加える。参照は既存の `ref`・`refs` で `Type/id` に正規化する）。T003 を通す
+- [X] T004 `server/src/main/java/jp/example/demo/fhir/search/SearchParameters.java` に T003 のパラメータを実装する（MedicationRequest・MedicationDispense・Encounter の定義を追加し、Task に `encounter` を加え、Location をパラメータ無しの種別に加える。参照は既存の `ref`・`refs` で `Type/id` に正規化する）。T003 を通す
 
 ### サーバー：初期データ（research.md R-02、data-model.md §1）
 
-- [ ] T005 [P] 静的な初期データを追加する（`server/src/main/resources/seed/`、data-model.md §1 の表。すべて架空。既存の `organization-lab-dept.json`・`practitioner-ns-d.json`・`practitionerrole-ns-d.json`・`patient-demo-jiro.json` と同じ形）：
+- [X] T005 [P] 静的な初期データを追加する（`server/src/main/resources/seed/`、data-model.md §1 の表。すべて架空。既存の `organization-lab-dept.json`・`practitioner-ns-d.json`・`practitionerrole-ns-d.json`・`patient-demo-jiro.json` と同じ形）：
   `organization-pharmacy-dept.json`（`name` 薬剤部、`partOf` → `Organization/hospital`、JP_Organization）、
   `practitioner-ph-c.json`・`practitionerrole-ph-c.json`（薬剤師 C。PractitionerRole の `code` = `https://demo.example.jp/fhir/CodeSystem/staff-role#pharmacist`「薬剤師」、`text`「薬剤師」、`organization` → `Organization/hospital`）、
   `practitioner-ph-e.json`・`practitionerrole-ph-e.json`（薬剤師 E。同上）、
@@ -69,19 +69,19 @@ US3（講演モード）は US1・US2 の画面と操作を使ってシナリオ
   `encounter-adm-saburo.json`（`status = in-progress`、`class` = `http://terminology.hl7.org/CodeSystem/v3-ActCode#IMP`、`subject` → `Patient/demo-saburo`、`location[0]` = `{ location: { reference: "Location/ward-surgery", display: "外科病棟" }, status: "active" }`、
   `participant[0].individual` → `Practitioner/dr-y`、`serviceProvider` → `Organization/hospital`、**`period` を持たない**、`meta.profile` = `http://jpfhir.jp/fhir/core/StructureDefinition/JP_Encounter`）。
   `index.txt` に 10 ファイルを追記する。外来（デモ 太郎）には Encounter を作らない（D-44）
-- [ ] T006 [P] `server/src/test/java/jp/example/demo/integration/FhirApiContractIT.java` にテストを追加する：`GET /fhir/Encounter/adm-saburo`・`/fhir/Location/ward-surgery`・`/fhir/Organization/pharmacy-dept`・`/fhir/PractitionerRole/ph-c` が 200。
+- [X] T006 [P] `server/src/test/java/jp/example/demo/integration/FhirApiContractIT.java` にテストを追加する：`GET /fhir/Encounter/adm-saburo`・`/fhir/Location/ward-surgery`・`/fhir/Organization/pharmacy-dept`・`/fhir/PractitionerRole/ph-c` が 200。
   `GET /fhir/Encounter?location=Location/ward-surgery&status=in-progress` が 1 件。`GET /fhir/Practitioner/dr-y` の名前が「医師 Y」。
   `POST /fhir/MedicationRequest`（`status = active`）が 201 で `ETag: W/"1"`、`PUT /fhir/MedicationRequest/{id}`（`If-Match: W/"1"`、`status = completed`）が 200、同じ `If-Match: W/"1"` の 2 回目が 412。
   `POST /fhir/MedicationDispense` が 201、`GET /fhir/MedicationDispense?prescription=MedicationRequest/{id}` が 1 件。
   Encounter・Location への `PUT` が成功しない（4xx。読み取り専用）。`Task?encounter=Encounter/adm-saburo` を criteria に持つ Subscription の `PUT` が 201 で `active` になる。`POST /demo/reset` の後、MedicationRequest・MedicationDispense が 0 件に戻る
-- [ ] T007 Provider を追加する：`server/src/main/java/jp/example/demo/fhir/provider/MedicationRequestProvider.java`・`MedicationDispenseProvider.java`（`AppointmentProvider` と同じく read・history・search・create・update）、
+- [X] T007 Provider を追加する：`server/src/main/java/jp/example/demo/fhir/provider/MedicationRequestProvider.java`・`MedicationDispenseProvider.java`（`AppointmentProvider` と同じく read・history・search・create・update）、
   `EncounterProvider.java`・`LocationProvider.java`（`ScheduleProvider` と同じく read・history・search だけ）。
   `server/src/main/java/jp/example/demo/fhir/ResourceWriter.java` の `WRITABLE` に `"MedicationRequest"`・`"MedicationDispense"` を加える（Encounter・Location は加えない）。
   `server/src/main/java/jp/example/demo/DemoServerMain.java` の `providers` に 4 つを登録する。T004・T005 の後に実施し、T006 を通す
 
 ### FHIR マスタとコードの確認（research.md R-03、data-model.md §2.1）
 
-- [ ] T008 [P] `ui/src/master/fhir-master.json` に追加する（data-model.md §2.1）：
+- [X] T008 [P] `ui/src/master/fhir-master.json` に追加する（data-model.md §2.1）：
   `profiles` に `MedicationRequest`（`…/JP_MedicationRequest`）・`MedicationDispense`（`…/JP_MedicationDispense`）・`Encounter`・`Location`、
   `systems` に `hot9`（`http://medis.or.jp/CodeSystem/master-HOT9`）・`jamiUsage`（`http://jami.jp/CodeSystem/MedicationUsage`）・`jamiMethod`（`http://jami.jp/CodeSystem/MedicationMethodDetailUsage`）・
   `routeCodes`（`http://jpfhir.jp/fhir/core/CodeSystem/route-codes`）・`merit9Category`（`http://jpfhir.jp/fhir/core/CodeSystem/JP_MedicationCategoryMERIT9_CS`）・
@@ -95,22 +95,22 @@ US3（講演モード）は US1・US2 の画面と操作を使ってシナリオ
   `codings` に `categoryOutpatient`（OHP 外来処方）・`categoryInHospital`（OHI 院内処方）・`categoryInpatient`（IHP 入院処方）・`categoryTemporary`（XTR 臨時処方）・`routeOral`（PO 口）・`methodOral`（10 経口）・
   `strengthProduct`（1 製剤量）・`performerPackager`（packager）・`performerChecker`（checker）、`pharmBusinessStatuses`（`dispensing` 調剤中、`auditing` 監査中）。
   `_comment` に「HOT9・JAMI 用法・MERIT9 区分・単位は JP Terminology 2.2609.0 で確認済み（specs/004 research R-03）」を加える
-- [ ] T009 [P] `server/src/test/java/jp/example/demo/jp/JpPackageConsistencyTest.java` の `codingsInSeedAndMasterExistInTheirCodeSystemsWhenThePackagesDefineThem` に、確認が空振りしていないことの表明を加える：
+- [X] T009 [P] `server/src/test/java/jp/example/demo/jp/JpPackageConsistencyTest.java` の `codingsInSeedAndMasterExistInTheirCodeSystemsWhenThePackagesDefineThem` に、確認が空振りしていないことの表明を加える：
   `http://medis.or.jp/CodeSystem/master-HOT9` がちょうど 4 件、`http://jami.jp/CodeSystem/MedicationUsage`・`JP_MedicationCategoryMERIT9_CS`・`MedicationUnitMERIT9Code`・`route-codes`・`MedicationMethodDetailUsage` が `verifiedPerSystem` に含まれること。
   `masterProfilesExistInJpCore` の件数の下限を 12 にする。T005・T008 の後に実施し、`mvn test -Dtest=JpPackageConsistencyTest` が（パッケージがあれば）通ることを確認する
 
 ### UI：表示ラベル・送信元・通信モニタの列（contracts/ui-screens.md「表示ラベル」、contracts/websocket.md）
 
-- [ ] T010 [P] `ui/tests/unit/labels.test.ts` にテストを追加し、`ui/src/fhir/labels.ts` を更新する：`StatusKind` に `"medicationRequest"`（ServiceRequest と同じラベル：`formatStatus("medicationRequest", "active")` が「有効（依頼中） active」）を加える。
+- [X] T010 [P] `ui/tests/unit/labels.test.ts` にテストを追加し、`ui/src/fhir/labels.ts` を更新する：`StatusKind` に `"medicationRequest"`（ServiceRequest と同じラベル：`formatStatus("medicationRequest", "active")` が「有効（依頼中） active」）を加える。
   `dispenseLabel(md)` が `destination` ありなら「払出済み」、`receiver` ありなら「お渡し済み」。`pharmBusinessStatusLabel("dispensing")` が「調剤中」、`"auditing"` が「監査中」（FHIR マスタの `pharmBusinessStatuses` から）。
   `prescriptionKind(mr)` が `category` に `IHP` があれば `"inpatient"`、それ以外は `"outpatient"`。`categoryLabel(mr)` が「外来処方・院内処方」「入院処方・臨時処方」（MERIT9 の `display` を「・」でつなぐ）
-- [ ] T011 [P] `ui/tests/unit/sequence.test.ts` にテストを追加し、通信モニタを更新する：`ui/src/fhir/client.ts` の `ClientId` に `"ehr-nurse-f"`・`"pharmacy"`・`"pharmacy-ph-c"`・`"pharmacy-ph-e"` を加える。
+- [X] T011 [P] `ui/tests/unit/sequence.test.ts` にテストを追加し、通信モニタを更新する：`ui/src/fhir/client.ts` の `ClientId` に `"ehr-nurse-f"`・`"pharmacy"`・`"pharmacy-ph-c"`・`"pharmacy-ph-e"` を加える。
   `ui/src/monitor/sequenceModel.ts` の `Lane` に `"pharmacy"`、`laneOf` で `pharmacy` と `pharmacy-` で始まる送信元を `"pharmacy"` に、`NAMES` に `ehr-nurse-f` 看護師 F・`pharmacy` 薬剤部門システム・`pharmacy-ph-c` 薬剤師 C・`pharmacy-ph-e` 薬剤師 E を加え、
   `lanesFor` が記録に薬剤部門システムがあるときだけ `pharmacy` の列を含めること（検体検査・放射線の列の既存の判定は変えない）。`ui/src/monitor/SequenceDiagram.tsx` の列の見出しと位置に「薬剤部門システム」を加える。既存の S1〜S3 のテストが通ること
 
 ### UI：処方・受付・監査・お渡し・払出の組み立て（research.md R-04、data-model.md §2、contracts/fhir-api.md）
 
-- [ ] T012 [P] `ui/tests/unit/prescriptionBuilders.test.ts` を作る：
+- [X] T012 [P] `ui/tests/unit/prescriptionBuilders.test.ts` を作る：
   `buildPrescriptionTransaction({ doctor: "dr-x", patientId: "demo-taro", encounterId: null, medicationKey: "amlodipine", doseValue: 1, days: 14, orderNumber, now })` の entry が `POST MedicationRequest`（fullUrl `urn:uuid:…`）・`POST Task` の 2 件。
   MedicationRequest は `status = active`・`intent = order`・`category` が OHP と OHI の 2 つの CodeableConcept・`medicationCodeableConcept` が HOT9 `103299401`・`subject` → `Patient/demo-taro`・`requester` → `Practitioner/dr-x`・`encounter` なし・
   `identifier` が Rp 番号 `1`・Rp 内の順番 `1`・オーダー番号（`https://demo.example.jp/fhir/sid/order-number`）の 3 件・`dosageInstruction[0]` の `timing.code` が JAMI `1011000400000000`・`route` が PO・`method` が 10・`doseAndRate[0].doseQuantity` が 1 `TAB`・
@@ -124,23 +124,23 @@ US3（講演モード）は US1・US2 の画面と操作を使ってシナリオ
   `identifier` が Rp 番号・Rp 内の順番・`meta.profile` が JP_MedicationDispense。Task は `status = completed`・`businessStatus` を持たない・`owner` 変えず・`output[0]` が `{ type: { text: "調剤の記録" }, valueReference: MedicationDispense の urn:uuid }`。
   `buildWardDispenseTransaction({ … })` の entry が **2 件**（MedicationRequest の PUT が無い）、MedicationDispense は `destination` → `Location/ward-surgery`・`context` → `Encounter/adm-saburo`・`receiver` なし。
   **どのエントリにも `ifNoneExist` が無い**。`nextPrescriptionOrderNumber(new Date("2026-10-08T16:00:00Z"), 0)` が `P-20261009-0001`（日本時間の日付）
-- [ ] T013 `ui/src/fhir/builders/prescription.ts` を作り、T012 の関数を実装する（`ui/src/fhir/builders/labOrder.ts` の `post`・`put` と同じ形、コードは FHIR マスタから読む、日付は `ctBooking.ts` と同じく日本時間）。
+- [X] T013 `ui/src/fhir/builders/prescription.ts` を作り、T012 の関数を実装する（`ui/src/fhir/builders/labOrder.ts` の `post`・`put` と同じ形、コードは FHIR マスタから読む、日付は `ctBooking.ts` と同じく日本時間）。
   `PHARMACY_DEPT = "Organization/pharmacy-dept"`、`WARD_LOCATION = "Location/ward-surgery"`、`PHARMACISTS = { "ph-c": "薬剤師 C", "ph-e": "薬剤師 E" }`、`PRESCRIBERS = { "dr-x": "医師 X", "dr-y": "医師 Y" }` を export する。T012 を通す
-- [ ] T014 [P] `ui/tests/unit/prescriptionActions.test.ts` を作る（`fetch` を差し替えた `FhirClient`。`ui/tests/unit/ctActions.test.ts` の書き方に合わせる）：
+- [X] T014 [P] `ui/tests/unit/prescriptionActions.test.ts` を作る（`fetch` を差し替えた `FhirClient`。`ui/tests/unit/ctActions.test.ts` の書き方に合わせる）：
   純粋関数 `dispenserOf(history)` が、版の履歴（新しい順・古い順のどちらでも）のうち `businessStatus` が `dispensing` だった**最後の版**の `owner` の id（`ph-c`）を返し、無ければ null を返す。
   `placePrescription(client, "dr-x", { patientId, medicationKey, doseValue, days })` が `MedicationRequest?requester=Practitioner/dr-x` の件数でオーダー番号を採番し、`Encounter?patient=Patient/{id}&status=in-progress` の結果で外来・入院を決めて Transaction を送る。
   `acceptPrescription(client, row, "ph-c")`・`startAudit(client, row, "ph-e")` が**一覧の行の ETag** を If-Match に付けた `PATCH /fhir/Task/{id}` を送る（受付は 1 回の操作。research.md R-04）。
   `handOver(client, row, "ph-e")` が `GET /fhir/Task/{id}/_history` → Transaction（3 件）の順に送り、調剤者を履歴から決める。`dispenseToWard(client, row, "ph-e")` が同じ順で 2 件の Transaction を送る。
   履歴に調剤中の版が無いときは要求を送らずに「調剤した薬剤師が分かりません（作業の版の履歴に調剤中の記録がありません）」のエラーにする
-- [ ] T015 `ui/src/fhir/prescriptionActions.ts` を作り、T014 の関数と `fetchLatestPrescription(client, doctorRef)`（その医師の最新の MedicationRequest と、`Task?focus=MedicationRequest/{id}` の作業）を実装する（画面とシナリオの自動実行が共有する。`labActions.ts` と同じ位置付け）。
+- [X] T015 `ui/src/fhir/prescriptionActions.ts` を作り、T014 の関数と `fetchLatestPrescription(client, doctorRef)`（その医師の最新の MedicationRequest と、`Task?focus=MedicationRequest/{id}` の作業）を実装する（画面とシナリオの自動実行が共有する。`labActions.ts` と同じ位置付け）。
   版の履歴は既存の `FhirClient.history<T>(type, id)`（`ui/src/fhir/client.ts`）で取得する。T013 の後に実施し、T014 を通す
 
 ### UI：一覧の取得と結合（research.md R-05・R-06、contracts/ui-screens.md）
 
-- [ ] T016 [P] `ui/tests/unit/prescriptions.test.ts` を作る：純粋関数 `joinPrescriptions(mrs, tasks, dispenses, patients, encounters)` が MedicationRequest を起点に、`focus` で作業、`authorizingPrescription` で調剤の記録、`subject` で患者名、`encounter` で病棟名（Encounter の `location[0].location.display`）を結び付けた行を新しい順に返すこと。
+- [X] T016 [P] `ui/tests/unit/prescriptions.test.ts` を作る：純粋関数 `joinPrescriptions(mrs, tasks, dispenses, patients, encounters)` が MedicationRequest を起点に、`focus` で作業、`authorizingPrescription` で調剤の記録、`subject` で患者名、`encounter` で病棟名（Encounter の `location[0].location.display`）を結び付けた行を新しい順に返すこと。
   作業の無い処方・調剤の記録の無い処方も行になること。`diffPrescriptionRows(prev, next)` が状態・業務上の状態・担当・お渡し／払出の有無が変わった行を `rowChanges` と同じ形で返し、`prev` が null なら空を返すこと。
   定数 `PHARMACY_OWNERS` が `"Organization/pharmacy-dept,PractitionerRole/ph-c,PractitionerRole/ph-e"`、`WARD_ENCOUNTERS` が `"Encounter/adm-saburo"` であること
-- [ ] T017 `ui/src/systems/shared/prescriptions.ts` を作る：T016 の関数・定数と、取得の関数
+- [X] T017 `ui/src/systems/shared/prescriptions.ts` を作る：T016 の関数・定数と、取得の関数
   `loadDoctorPrescriptions(client, doctor)`（`MedicationRequest?requester=Practitioner/{doctor}`、`Task?requester=…`、`MedicationDispense`（全件）、患者、Encounter（全件）を並行に取得）、
   `loadWardPrescriptions(client)`（`Encounter?location=Location/ward-surgery&status=in-progress` → その id で `MedicationRequest?encounter=…`・`Task?encounter=…`・`MedicationDispense?prescription=…`、患者）、
   `loadPharmacyPrescriptions(client)`（`Task?owner=PHARMACY_OWNERS`、MedicationRequest（全件。作業の `focus` で絞る）、患者、Encounter（全件））。
@@ -148,9 +148,9 @@ US3（講演モード）は US1・US2 の画面と操作を使ってシナリオ
 
 ### UI：エラーとシナリオの型（contracts/ui-screens.md「エラーの操作名」、data-model.md §4.1）
 
-- [ ] T018 [P] `ui/tests/unit/errors.test.ts` にテストを追加し、`ui/src/fhir/errors.ts` に `dispenseConflictError(operation: "お渡し" | "払出")` を加える：412 の文言「他の利用者が先に更新しました。最新の状態を表示します」に「{操作}は取り消されました。調剤の記録は登録されていません」を併記する。
+- [X] T018 [P] `ui/tests/unit/errors.test.ts` にテストを追加し、`ui/src/fhir/errors.ts` に `dispenseConflictError(operation: "お渡し" | "払出")` を加える：412 の文言「他の利用者が先に更新しました。最新の状態を表示します」に「{操作}は取り消されました。調剤の記録は登録されていません」を併記する。
   `toDisplayError({ status: 422, … }, "お渡し")` が「この状態からはお渡しできません」になること（既存の規則のまま）
-- [ ] T019 シナリオの型を広げる（data-model.md §4.1）：`ui/src/scenario/types.ts` の `ScenarioId` に `"s4-outpatient"`・`"s4-inpatient"`、`ScenarioClient` に `"ehr-doctor-y"`・`"ehr-nurse-f"`・`"pharmacy"`・`"pharmacy-ph-c"`・`"pharmacy-ph-e"`、
+- [X] T019 シナリオの型を広げる（data-model.md §4.1）：`ui/src/scenario/types.ts` の `ScenarioId` に `"s4-outpatient"`・`"s4-inpatient"`、`ScenarioClient` に `"ehr-doctor-y"`・`"ehr-nurse-f"`・`"pharmacy"`・`"pharmacy-ph-c"`・`"pharmacy-ph-e"`、
   `ScenarioState` に `medicationRequest?: string`・`medicationDispense?: "none" | "completed"`、`target.screen` に `"pharmacy"`、`target.role` に `"dr-x" | "dr-y" | "ns-f"`、`target.pharmacist?: "ph-c" | "ph-e"`、
   `Scenario` に `stage?: "lab" | "pharmacy"`・`loadState?: (client: FhirClient) => Promise<ScenarioState>`・`fastForward?: { to: number; label: string }` を加える。
   `ui/src/scenario/progress.ts` の `matchesData` で `medicationRequest`・`medicationDispense` を比べる（未指定なら比べない）。

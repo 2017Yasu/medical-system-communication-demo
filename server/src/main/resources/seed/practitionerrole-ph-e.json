@@ -1,0 +1,28 @@
+{
+  "resourceType": "PractitionerRole",
+  "id": "ph-e",
+  "meta": {
+    "profile": [
+      "http://jpfhir.jp/fhir/core/StructureDefinition/JP_PractitionerRole"
+    ]
+  },
+  "active": true,
+  "practitioner": {
+    "reference": "Practitioner/ph-e"
+  },
+  "organization": {
+    "reference": "Organization/hospital"
+  },
+  "code": [
+    {
+      "coding": [
+        {
+          "system": "https://demo.example.jp/fhir/CodeSystem/staff-role",
+          "code": "pharmacist",
+          "display": "薬剤師"
+        }
+      ],
+      "text": "薬剤師"
+    }
+  ]
+}

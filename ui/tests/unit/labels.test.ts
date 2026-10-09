@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   businessStatusLabel,
+  categoryLabel,
+  dispenseLabel,
+  pharmBusinessStatusLabel,
+  prescriptionKind,
   formatSlotTime,
   formatStatus,
   holderName,
@@ -98,5 +102,32 @@ describe("S3 labels (specs/003)", () => {
     expect(holderName(undefined)).toBeNull();
     expect(holderName("")).toBeNull();
     expect(holderName("別の備考")).toBeNull();
+  });
+
+  it("labels prescriptions like service requests (S4)", () => {
+    expect(formatStatus("medicationRequest", "active")).toBe("有効（依頼中） active");
+    expect(formatStatus("medicationRequest", "completed")).toBe("完了 completed");
+  });
+
+  it("labels the dispense record as handed over (outpatient) or dispatched (inpatient)", () => {
+    expect(dispenseLabel({ resourceType: "MedicationDispense", status: "completed", medicationCodeableConcept: {}, receiver: [{ reference: "Patient/demo-taro" }] })).toBe("お渡し済み");
+    expect(dispenseLabel({ resourceType: "MedicationDispense", status: "completed", medicationCodeableConcept: {}, destination: { reference: "Location/ward-surgery" } })).toBe("払出済み");
+  });
+
+  it("labels the pharmacy business statuses", () => {
+    expect(pharmBusinessStatusLabel("dispensing")).toBe("調剤中");
+    expect(pharmBusinessStatusLabel("auditing")).toBe("監査中");
+    expect(pharmBusinessStatusLabel("x")).toBe("x");
+    expect(businessStatusLabel("auditing")).toBe("監査中");
+  });
+
+  it("tells outpatient from inpatient by the MERIT9 category and joins its display names", () => {
+    const c = (code: string, display: string) => ({ coding: [{ system: "http://jpfhir.jp/fhir/core/CodeSystem/JP_MedicationCategoryMERIT9_CS", code, display }] });
+    const out = { resourceType: "MedicationRequest", status: "active", intent: "order", subject: {}, category: [c("OHP", "外来処方"), c("OHI", "院内処方")] } as never;
+    const inn = { resourceType: "MedicationRequest", status: "active", intent: "order", subject: {}, category: [c("IHP", "入院処方"), c("XTR", "臨時処方")] } as never;
+    expect(prescriptionKind(out)).toBe("outpatient");
+    expect(prescriptionKind(inn)).toBe("inpatient");
+    expect(categoryLabel(out)).toBe("外来処方・院内処方");
+    expect(categoryLabel(inn)).toBe("入院処方・臨時処方");
   });
 });

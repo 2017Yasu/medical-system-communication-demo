@@ -106,3 +106,18 @@ export function slotHoldConflictError(latest: { status?: string; comment?: strin
 export function slotHoldExpiredError(): DisplayError {
   return build("conflict", "仮押さえの期限が切れました。枠を選び直してください", undefined, httpLabel(412));
 }
+
+/** お渡し・払出の Transaction が 412 のとき：作業（外来では処方も）が先に更新され、全体が取り消された（調剤の記録は作られない）。 */
+export function dispenseConflictError(operation: "お渡し" | "払出"): DisplayError {
+  return build(
+    "conflict",
+    `他の利用者が先に更新しました。最新の状態を表示します（${operation}は取り消されました。調剤の記録は登録されていません）`,
+    undefined,
+    httpLabel(412),
+  );
+}
+
+/** 調剤した薬剤師を作業の版の履歴から読み取れないとき（要求は送らない）。 */
+export function dispenserUnknownError(): DisplayError {
+  return build("rule", "調剤した薬剤師が分かりません（作業の版の履歴に調剤中の記録がありません）");
+}

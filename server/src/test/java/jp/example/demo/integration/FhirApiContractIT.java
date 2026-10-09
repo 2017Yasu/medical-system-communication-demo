@@ -58,13 +58,13 @@ class FhirApiContractIT {
     @Test
     void resetRestoresTheSeedAndPatientsCanBeSearched() throws Exception {
         JsonNode r = demo.reset();
-        assertThat(r.get("seedResources").asInt()).isEqualTo(27);
+        assertThat(r.get("seedResources").asInt()).isEqualTo(37);
 
         HttpResponse<String> res = demo.fhirRaw("GET", "/Patient", Map.of(), null);
         assertThat(res.statusCode()).isEqualTo(200);
         Bundle bundle = Fhir.json().parseResource(Bundle.class, res.body());
-        assertThat(bundle.getEntry()).hasSize(4);
-        assertThat(bundle.getTotal()).isEqualTo(4);
+        assertThat(bundle.getEntry()).hasSize(5);
+        assertThat(bundle.getTotal()).isEqualTo(5);
 
         HttpResponse<String> one = demo.fhirRaw("GET", "/Patient/demo-taro", Map.of(), null);
         assertThat(one.statusCode()).isEqualTo(200);
@@ -266,6 +266,63 @@ class FhirApiContractIT {
         String sub = "{\"resourceType\":\"Subscription\",\"id\":\"ehr-ct-slots\",\"status\":\"requested\",\"reason\":\"CT 枠\","
                 + "\"criteria\":\"Slot?schedule=Schedule/ct-1\",\"channel\":{\"type\":\"websocket\",\"payload\":\"application/fhir+json\"}}";
         HttpResponse<String> res = demo.fhirRaw("PUT", "/Subscription/ehr-ct-slots", JSON_PUT, sub);
+        assertThat(res.statusCode()).isEqualTo(201);
+        assertThat(res.body()).contains("\"active\"");
+    }
+
+    // ---- S4 処方調剤（specs/004 contracts/fhir-api.md） ----
+
+    @Test
+    void s4SeedResourcesAreReadable() throws Exception {
+        demo.reset();
+        for (String path : new String[] {"/Encounter/adm-saburo", "/Location/ward-surgery", "/Organization/pharmacy-dept", "/PractitionerRole/ph-c"}) {
+            assertThat(demo.fhirRaw("GET", path, Map.of(), null).statusCode()).as(path).isEqualTo(200);
+        }
+        HttpResponse<String> enc = demo.fhirRaw("GET", "/Encounter?location=Location/ward-surgery&status=in-progress", Map.of(), null);
+        assertThat(Fhir.json().parseResource(Bundle.class, enc.body()).getEntry()).hasSize(1);
+        assertThat(demo.fhirRaw("GET", "/Practitioner/dr-y", Map.of(), null).body()).contains("医師 Y");
+    }
+
+    @Test
+    void medicationRequestAndDispenseAreWritableWithIfMatch() throws Exception {
+        demo.reset();
+        Map<String, String> headers = Map.of("Content-Type", "application/fhir+json", "X-Demo-Client", "ehr-doctor");
+        String mr = "{\"resourceType\":\"MedicationRequest\",\"status\":\"active\",\"intent\":\"order\","
+                + "\"subject\":{\"reference\":\"Patient/demo-taro\"},\"medicationCodeableConcept\":{\"text\":\"x\"}}";
+        HttpResponse<String> created = demo.fhirRaw("POST", "/MedicationRequest", headers, mr);
+        assertThat(created.statusCode()).isEqualTo(201);
+        assertThat(created.headers().firstValue("ETag")).contains("W/\"1\"");
+        String completed = "{\"resourceType\":\"MedicationRequest\",\"id\":\"1\",\"status\":\"completed\",\"intent\":\"order\","
+                + "\"subject\":{\"reference\":\"Patient/demo-taro\"},\"medicationCodeableConcept\":{\"text\":\"x\"}}";
+        assertThat(demo.fhirRaw("PUT", "/MedicationRequest/1", ifMatch("W/\"1\""), completed).statusCode()).isEqualTo(200);
+        assertThat(demo.fhirRaw("PUT", "/MedicationRequest/1", ifMatch("W/\"1\""), completed).statusCode()).isEqualTo(412);
+
+        String md = "{\"resourceType\":\"MedicationDispense\",\"status\":\"completed\",\"medicationCodeableConcept\":{\"text\":\"x\"},"
+                + "\"authorizingPrescription\":[{\"reference\":\"MedicationRequest/1\"}]}";
+        assertThat(demo.fhirRaw("POST", "/MedicationDispense", headers, md).statusCode()).isEqualTo(201);
+        HttpResponse<String> found = demo.fhirRaw("GET", "/MedicationDispense?prescription=MedicationRequest/1", Map.of(), null);
+        assertThat(Fhir.json().parseResource(Bundle.class, found.body()).getEntry()).hasSize(1);
+
+        demo.reset();
+        assertThat(Fhir.json().parseResource(Bundle.class, demo.fhirRaw("GET", "/MedicationRequest", Map.of(), null).body()).getEntry()).isEmpty();
+        assertThat(Fhir.json().parseResource(Bundle.class, demo.fhirRaw("GET", "/MedicationDispense", Map.of(), null).body()).getEntry()).isEmpty();
+    }
+
+    @Test
+    void encounterAndLocationAreReadOnly() throws Exception {
+        demo.reset();
+        String loc = "{\"resourceType\":\"Location\",\"id\":\"ward-surgery\",\"name\":\"x\"}";
+        String enc = "{\"resourceType\":\"Encounter\",\"id\":\"adm-saburo\",\"status\":\"finished\",\"class\":{\"code\":\"IMP\"}}";
+        assertThat(demo.fhirRaw("PUT", "/Location/ward-surgery", ifMatch("W/\"1\""), loc).statusCode()).isGreaterThanOrEqualTo(400);
+        assertThat(demo.fhirRaw("PUT", "/Encounter/adm-saburo", ifMatch("W/\"1\""), enc).statusCode()).isGreaterThanOrEqualTo(400);
+    }
+
+    @Test
+    void subscriptionCanUseTaskEncounterCriteria() throws Exception {
+        demo.reset();
+        String sub = "{\"resourceType\":\"Subscription\",\"id\":\"ehr-ward-surgery\",\"status\":\"requested\",\"reason\":\"病棟\","
+                + "\"criteria\":\"Task?encounter=Encounter/adm-saburo\",\"channel\":{\"type\":\"websocket\",\"payload\":\"application/fhir+json\"}}";
+        HttpResponse<String> res = demo.fhirRaw("PUT", "/Subscription/ehr-ward-surgery", JSON_PUT, sub);
         assertThat(res.statusCode()).isEqualTo(201);
         assertThat(res.body()).contains("\"active\"");
     }

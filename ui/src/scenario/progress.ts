@@ -9,6 +9,8 @@ export function matchesData(expected: ExpectedState, state: ScenarioState): bool
   if (expected.serviceRequest !== undefined && expected.serviceRequest !== state.serviceRequest) return false;
   if (expected.specimen !== undefined && expected.specimen !== state.specimen) return false;
   if (expected.diagnosticReport !== undefined && expected.diagnosticReport !== state.diagnosticReport) return false;
+  if (expected.medicationRequest !== undefined && expected.medicationRequest !== state.medicationRequest) return false;
+  if (expected.medicationDispense !== undefined && expected.medicationDispense !== state.medicationDispense) return false;
   if (expected.task) {
     const t = state.task;
     if (!t) return false;
