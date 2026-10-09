@@ -66,3 +66,45 @@ test.describe("個別ウィンドウ", () => {
     await expect(lis.getByText("作業はありません。")).toBeVisible();
   });
 });
+
+test("入院：処方から払出まで（処方は有効のまま、看護師 F の画面に払出済み）", async ({ browser, request }) => {
+  const [doctorY, pharmacy, ward, monitor] = await openBase(browser, request, [
+    "/ehr/rx?role=dr-y",
+    "/pharmacy",
+    "/ehr/rx?role=ns-f",
+    "/monitor",
+  ]);
+
+  await expect(doctorY.getByTestId("rx-category")).toContainText("入院処方・臨時処方（外科病棟）", SYNC);
+  await prescribeOn(doctorY);
+  const theirs = pharmacy.getByTestId("rx-pharmacy-row-1");
+  await expect(theirs).toContainText("デモ 三郎", SYNC);
+  await expect(theirs).toContainText("入院（外科病棟）");
+  const wardRow = ward.getByTestId("ward-row-1");
+  await expect(wardRow).toContainText("薬剤部で受付待ち", SYNC);
+
+  await pharmacyButton(pharmacy, "1", "受付・調剤開始").click();
+  await expect(theirs).toContainText("調剤中", SYNC);
+  await switchPharmacist(pharmacy, "薬剤師 E");
+  await pharmacyButton(pharmacy, "1", "監査を開始").click();
+  await expect(theirs).toContainText("監査中", SYNC);
+  await pharmacyButton(pharmacy, "1", "監査を終えて払出").click();
+
+  // 作業は完了、処方は有効のまま。看護師 F の画面に払出済みと表示される
+  await expect(wardRow).toContainText("払出済み", SYNC);
+  await expect(wardRow).toContainText("有効（依頼中）");
+  await expect(wardRow).toContainText("完了");
+  const mine = doctorY.getByTestId("rx-row-1");
+  await expect(mine).toContainText("払出済み", SYNC);
+  await expect(mine).toContainText("有効（依頼中）");
+  await expect(doctorY.getByTestId("rx-progress-1")).toContainText("投与中");
+
+  // 通信モニタ：払出の Transaction の中身に MedicationRequest の更新が無い（外来のお渡しとの違い）
+  const diagram = monitor.getByTestId("sequence-diagram");
+  await expect(diagram).toContainText("薬剤師 E：POST Transaction（一括登録）", SYNC);
+  await diagram.locator('[role="button"]', { hasText: "薬剤師 E：POST Transaction" }).click();
+  const entries = monitor.getByTestId("transaction-entries");
+  await expect(entries).toContainText("POST MedicationDispense", SYNC);
+  await expect(entries).toContainText("PUT Task/1");
+  await expect(entries).not.toContainText("PUT MedicationRequest");
+});

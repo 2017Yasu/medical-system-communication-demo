@@ -33,6 +33,8 @@ export function Launcher() {
           <li><Link to="/ehr/ct?doctor=dr-y">電子カルテ CT 予約（医師 Y）</Link></li>
           <li><Link to="/ris">放射線部門システム</Link></li>
           <li><Link to="/ehr/rx?role=dr-x">電子カルテ 処方（医師 X）</Link></li>
+          <li><Link to="/ehr/rx?role=dr-y">電子カルテ 処方（医師 Y）</Link></li>
+          <li><Link to="/ehr/rx?role=ns-f">電子カルテ 病棟（看護師 F）</Link></li>
           <li><Link to="/pharmacy">薬剤部門システム</Link></li>
           <li><Link to="/lis?tech=tech-a">検体検査システム（技師 A）</Link></li>
           <li><Link to="/lis?tech=tech-b">検体検査システム（技師 B）</Link></li>

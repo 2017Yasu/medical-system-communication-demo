@@ -227,4 +227,92 @@ class S4ScenarioIT {
             assertThat(http.get("pharmacy-ph-e")).as("監査・履歴・お渡し").isEqualTo(3);
         }
     }
+
+    // ---- 入院 ----
+
+    @Test
+    void inpatientEndsWithTheTaskCompletedTheDispatchRecordedAndThePrescriptionStillActive() throws Exception {
+        PharmacyFlow flow = new PharmacyFlow(demo);
+        for (int run = 1; run <= repeat(); run++) {
+            demo.reset();
+            Ids ids = flow.prescribeOk("ehr-doctor-y", "dr-y", "demo-saburo", "adm-saburo", "loxoprofen");
+            MedicationRequest mr0 = flow.parse(MedicationRequest.class, flow.read("MedicationRequest", ids.mr()));
+            assertThat(mr0.getEncounter().getReference()).isEqualTo("Encounter/adm-saburo");
+            assertThat(mr0.getCategory().get(0).getCodingFirstRep().getCode()).isEqualTo("IHP");
+            assertThat(mr0.getDispenseRequest().getQuantity().getValue().intValue()).as("1 錠 × 3 回 × 3 日").isEqualTo(9);
+            Task t0 = flow.parse(Task.class, flow.read("Task", ids.task()));
+            assertThat(t0.getEncounter().getReference()).isEqualTo("Encounter/adm-saburo");
+
+            // ステップ 1〜4 は外来と同じ状態の変化
+            String taskEtag = toAudit(flow, ids);
+            Task audit = flow.parse(Task.class, flow.read("Task", ids.task()));
+            assertThat(audit.getStatus()).isEqualTo(Task.TaskStatus.INPROGRESS);
+            assertThat(audit.getBusinessStatus().getCodingFirstRep().getCode()).isEqualTo("auditing");
+            assertThat(flow.dispenserFromHistory("pharmacy-ph-e", ids.task())).isEqualTo("ph-c");
+
+            HttpResponse<String> done = flow.dispenseToWard("pharmacy-ph-e", ids.mr(), ids.task(), taskEtag, "ph-c", "ph-e");
+            assertThat(done.statusCode()).as("run %d: %s", run, done.body()).isEqualTo(200);
+            org.hl7.fhir.r4.model.Bundle response = jp.example.demo.Fhir.json().parseResource(org.hl7.fhir.r4.model.Bundle.class, done.body());
+            assertThat(response.getEntry()).as("run %d: 処方の更新を含まない", run).hasSize(2);
+
+            MedicationRequest mr = flow.parse(MedicationRequest.class, flow.read("MedicationRequest", ids.mr()));
+            assertThat(mr.getStatus()).as("run %d: 処方は有効のまま", run).isEqualTo(MedicationRequest.MedicationRequestStatus.ACTIVE);
+            assertThat(mr.getMeta().getVersionId()).isEqualTo("1");
+            Task task = flow.parse(Task.class, flow.read("Task", ids.task()));
+            assertThat(task.getStatus()).isEqualTo(Task.TaskStatus.COMPLETED);
+            assertThat(flow.dispenses(ids.mr())).as("run %d: 調剤の記録は 1 件", run).isEqualTo(1);
+            MedicationDispense md = flow.dispense(ids.mr());
+            assertThat(md.getDestination().getReference()).isEqualTo("Location/ward-surgery");
+            assertThat(md.getContext().getReference()).isEqualTo("Encounter/adm-saburo");
+            assertThat(md.hasReceiver()).isFalse();
+            assertThat(md.getPerformer().get(0).getActor().getReference()).isEqualTo("PractitionerRole/ph-c");
+            assertThat(md.getPerformer().get(1).getActor().getReference()).isEqualTo("PractitionerRole/ph-e");
+        }
+    }
+
+    @Test
+    void theWardAndTheDoctorYSubscriptionsReceiveTheInpatientUpdatesButNotTheOutpatientOnes() throws Exception {
+        PharmacyFlow flow = new PharmacyFlow(demo);
+        demo.reset();
+        WsClient ward = bind("ehr-nurse-f", "ehr-ward-surgery", "Task?encounter=Encounter/adm-saburo");
+        WsClient doctorY = bind("ehr-doctor-y", "ehr-rx-dr-y", "Task?requester=Practitioner/dr-y");
+
+        // 外来（医師 X・デモ 太郎）の操作は病棟にも医師 Y にも届かない
+        flow.prescribeOk("ehr-doctor", "dr-x", "demo-taro", null, "amlodipine");
+        assertThat(ward.drain(400)).noneMatch(m -> m.startsWith("ping"));
+        assertThat(doctorY.drain(100)).noneMatch(m -> m.startsWith("ping"));
+
+        Ids ids = flow.prescribeOk("ehr-doctor-y", "dr-y", "demo-saburo", "adm-saburo", "loxoprofen");
+        assertThat(ward.await(m -> m.equals("ping ehr-ward-surgery"), 3000)).as("処方で病棟に ping").isNotNull();
+        assertThat(doctorY.await(m -> m.equals("ping ehr-rx-dr-y"), 3000)).as("処方で医師 Y に ping").isNotNull();
+        String taskEtag = toAudit(flow, ids);
+        assertThat(ward.drain(300).stream().filter(m -> m.equals("ping ehr-ward-surgery")).count()).as("受付・監査の通知").isGreaterThanOrEqualTo(2);
+        flow.dispenseToWard("pharmacy-ph-e", ids.mr(), ids.task(), taskEtag, "ph-c", "ph-e");
+        assertThat(ward.await(m -> m.equals("ping ehr-ward-surgery"), 3000)).as("払出で病棟に ping").isNotNull();
+        assertThat(doctorY.await(m -> m.equals("ping ehr-rx-dr-y"), 3000)).as("払出で医師 Y に ping").isNotNull();
+    }
+
+    @Test
+    void noTrafficIsLostForTheInpatientFlowEither() throws Exception {
+        PharmacyFlow flow = new PharmacyFlow(demo);
+        for (int run = 1; run <= repeat(); run++) {
+            demo.reset();
+            Ids ids = flow.prescribeOk("ehr-doctor-y", "dr-y", "demo-saburo", "adm-saburo", "loxoprofen");
+            String taskEtag = toAudit(flow, ids);
+            flow.dispenserFromHistory("pharmacy-ph-e", ids.task());
+            flow.dispenseToWard("pharmacy-ph-e", ids.mr(), ids.task(), taskEtag, "ph-c", "ph-e");
+
+            List<JsonNode> records = traffic();
+            TreeSet<Long> seqs = new TreeSet<>();
+            for (JsonNode r : records) {
+                assertThat(seqs.add(r.get("seq").asLong())).as("run %d: seq の重複", run).isTrue();
+            }
+            assertThat(seqs.last() - seqs.first() + 1).as("run %d: seq に欠番がない", run).isEqualTo(seqs.size());
+            long handOverTransactions = records.stream()
+                    .filter(r -> "http".equals(r.get("kind").asText()) && "POST".equals(r.get("request").get("method").asText())
+                            && r.get("request").get("url").asText().equals("/fhir") && "pharmacy-ph-e".equals(r.get("client").asText()))
+                    .count();
+            assertThat(handOverTransactions).as("払出の Transaction は 1 回").isEqualTo(1);
+        }
+    }
 }

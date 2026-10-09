@@ -222,23 +222,23 @@ US3（講演モード）は US1・US2 の画面と操作を使ってシナリオ
 
 ### Tests for User Story 2
 
-- [ ] T029 [P] [US2] `server/src/test/java/jp/example/demo/integration/S4ScenarioIT.java` に入院のテストを加える（`-Ds4.repeat`、既定 20 回）：処方（`ehr-doctor-y`、`encounter` = `adm-saburo`）→ 受付 → 監査 → 払出（`pharmacy-ph-e`、2 件の Transaction）で、
+- [X] T029 [P] [US2] `server/src/test/java/jp/example/demo/integration/S4ScenarioIT.java` に入院のテストを加える（`-Ds4.repeat`、既定 20 回）：処方（`ehr-doctor-y`、`encounter` = `adm-saburo`）→ 受付 → 監査 → 払出（`pharmacy-ph-e`、2 件の Transaction）で、
   処方が **`active`・版 1 のまま**、作業 `completed`、調剤の記録がちょうど 1 件（`destination` = `Location/ward-surgery`、`context` = `Encounter/adm-saburo`、`receiver` なし、`performer` は外来と同じ）。
   Transaction の応答のエントリが 2 件であること。`ehr-ward-surgery`（`Task?encounter=Encounter/adm-saburo`）と `ehr-rx-dr-y` に bind した WebSocket に、処方・受付・監査・払出のたびに ping が届き、
   同じ回の外来の操作（デモ 太郎の処方）では `ehr-ward-surgery` に ping が届かないこと
   (d) 取りこぼし 0 件（SC-006）：外来の (f) と同じ確認を入院の操作に対して行う
-- [ ] T030 [P] [US2] `ui/tests/unit/prescriptions.test.ts` に純粋関数 `progressText(row)` のテストを加える：調剤の記録が無く作業が `requested` →「薬剤部で受付待ち」、`dispensing` →「薬剤部で調剤中」、`auditing` →「薬剤部で監査中」、
+- [X] T030 [P] [US2] `ui/tests/unit/prescriptions.test.ts` に純粋関数 `progressText(row)` のテストを加える：調剤の記録が無く作業が `requested` →「薬剤部で受付待ち」、`dispensing` →「薬剤部で調剤中」、`auditing` →「薬剤部で監査中」、
   外来で調剤の記録あり →「お渡し済み {時刻}」、入院で調剤の記録あり・処方 `active` →「払出済み {時刻}・投与中」（時刻は日本時間の `HH:mm`）
 
 ### Implementation for User Story 2
 
-- [ ] T031 [US2] `ui/src/systems/shared/prescriptions.ts` に `progressText` を実装し（T030 を通す）、医師の処方一覧の「お渡し・払出」の列に使う。`PrescriptionForm.tsx` で、入院中の患者を選んだときの区分の表示を「入院処方・臨時処方（外科病棟）」にする（病棟名は Encounter の `location[0].location.display`）
-- [ ] T032 [US2] 看護師 F の画面を作る：`ui/src/systems/ehr/WardView.tsx`（`useLiveData`：`clientId: "ehr-nurse-f"`、Subscription `ehr-ward-surgery`、criteria `Task?encounter=${WARD_ENCOUNTERS}`、`load` は `loadWardPrescriptions`）。
+- [X] T031 [US2] `ui/src/systems/shared/prescriptions.ts` に `progressText` を実装し（T030 を通す）、医師の処方一覧の「お渡し・払出」の列に使う。`PrescriptionForm.tsx` で、入院中の患者を選んだときの区分の表示を「入院処方・臨時処方（外科病棟）」にする（病棟名は Encounter の `location[0].location.display`）
+- [X] T032 [US2] 看護師 F の画面を作る：`ui/src/systems/ehr/WardView.tsx`（`useLiveData`：`clientId: "ehr-nurse-f"`、Subscription `ehr-ward-surgery`、criteria `Task?encounter=${WARD_ENCOUNTERS}`、`load` は `loadWardPrescriptions`）。
   見出し「電子カルテ（看護師 F）外科病棟」、一覧 `data-testid="ward-list"`（患者・薬剤・用法・処方の状態・作業の状態・払出（`progressText`））、払出済みの行に「病棟に届いています（処方は投与中のため有効のままです）」。操作のボタンは置かない（D-48）。
   `PrescriptionScreen.tsx` の `ns-f` で `WardView` を表示する
-- [ ] T033 [US2] `ui/src/systems/pharmacy/PharmacyScreen.tsx` に入院の分を加える：区分の列に「入院（外科病棟）」、監査中の入院の行に「監査を終えて払出」（`data-guide={\`rx-ward-dispense-${id}\`}`、`dispenseToWard` を呼ぶ。412 は `dispenseConflictError("払出")`）
-- [ ] T034 [US2] `ui/src/app/Launcher.tsx` の「個別のウィンドウで開く」に「電子カルテ 処方（医師 Y）」（`/ehr/rx?role=dr-y`）・「電子カルテ 病棟（看護師 F）」（`/ehr/rx?role=ns-f`）を加える
-- [ ] T035 [US2] `ui/tests/e2e/s4-prescription.spec.ts` に「入院：個別ウィンドウで処方から払出まで」を加える（`/ehr/rx?role=dr-y`・`/pharmacy`・`/ehr/rx?role=ns-f`・`/monitor` の 4 ページ）：
+- [X] T033 [US2] `ui/src/systems/pharmacy/PharmacyScreen.tsx` に入院の分を加える：区分の列に「入院（外科病棟）」、監査中の入院の行に「監査を終えて払出」（`data-guide={\`rx-ward-dispense-${id}\`}`、`dispenseToWard` を呼ぶ。412 は `dispenseConflictError("払出")`）
+- [X] T034 [US2] `ui/src/app/Launcher.tsx` の「個別のウィンドウで開く」に「電子カルテ 処方（医師 Y）」（`/ehr/rx?role=dr-y`）・「電子カルテ 病棟（看護師 F）」（`/ehr/rx?role=ns-f`）を加える
+- [X] T035 [US2] `ui/tests/e2e/s4-prescription.spec.ts` に「入院：個別ウィンドウで処方から払出まで」を加える（`/ehr/rx?role=dr-y`・`/pharmacy`・`/ehr/rx?role=ns-f`・`/monitor` の 4 ページ）：
   薬剤部門システムの行に「入院（外科病棟）」、払出の後に看護師 F の行が「払出済み」・処方「有効（依頼中）」・作業「完了」、医師 Y の行が「払出済み・投与中」。
   通信モニタで払出の Transaction を開き、中身の表が `POST MedicationDispense`・`PUT Task/1` の 2 行で `PUT MedicationRequest` が無いこと。UI を変えたら JAR を作り直してから実行する
 

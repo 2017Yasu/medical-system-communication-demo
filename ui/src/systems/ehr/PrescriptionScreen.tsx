@@ -7,6 +7,7 @@ import { PrescriptionChange, PrescriptionTask, RequestStatus } from "../shared/P
 import { diffPrescriptionRows, drugText, loadDoctorPrescriptions, orderNumberOf, progressText } from "../shared/prescriptions";
 import { useRowChanges } from "../shared/rowChanges";
 import { PrescriptionForm } from "./PrescriptionForm";
+import { WardView } from "./WardView";
 
 export type RxRole = PrescriberId | "ns-f";
 
@@ -34,7 +35,7 @@ export function PrescriptionScreen({ role, embedded = false }: { role?: RxRole; 
           <Link to="/">入口へ</Link>
         </header>
       )}
-      {current === "ns-f" ? <p className="muted" style={{ padding: "var(--sp-3)" }}>病棟の画面を準備しています。</p> : <DoctorRxView doctor={current} />}
+      {current === "ns-f" ? <WardView /> : <DoctorRxView doctor={current} />}
     </div>
   );
 }
